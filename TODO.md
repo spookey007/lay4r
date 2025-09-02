@@ -1,0 +1,5 @@
+- [x] Move audio element to top of Loader.tsx component
+- [x] Remove audio element from initial return block
+- [x] Remove audio element from final return block
+- [x] Test audio persistence across states
+- [x] Fix primary font loading issue
