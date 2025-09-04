@@ -12,7 +12,32 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   // Fetch token data from Jupiter Lite token details only
-  const fetchTokenData = async () => {
+  // const fetchTokenData = async () => {
+  //   setLoading(true);
+  //   try {
+  //     const resp = await fetch('http://localhost:4000/api/dex-pair');
+  //     const json = await resp.json();
+  
+  //     if (json?.code === 'OK' && Array.isArray(json.data) && json.data.length > 0) {
+  //       const dex = json.data[0];
+  
+  //       setTokenData({
+  //         price: `$${dex.price.toFixed(8)}`,
+  //         marketCap: `$${Math.round(dex.token?.metrics?.mcap).toLocaleString()}`,
+  //         totalSupply: `${(dex.token?.metrics?.totalSupply / 1_000_000).toFixed(2)}M L4`,
+  //         holders: `${dex.token?.metrics?.holders}`,
+  //         liquidity: `$${Math.round(dex.metrics?.liquidity).toLocaleString()}`,
+  //         volume24h: `$${Math.round(dex.periodStats?.['24h']?.volume?.total).toLocaleString()} 24h`
+  //       });
+  //     }
+  
+  //   } catch (err) {
+  //     console.error('Frontend fetch failed:', err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+const fetchTokenData = async () => {
     setLoading(true);
     try {
       // Jupiter Lite token details (supply, holders, usdPrice, mcap)
@@ -40,7 +65,8 @@ export default function Home() {
       setLoading(false);
     }
   };
-
+  
+  
   useEffect(() => {
     fetchTokenData();
     // Refresh details every 1 hour
@@ -70,7 +96,7 @@ export default function Home() {
           </div>
           <div className="flex-1 flex flex-col justify-center min-w-0">
 <div className="p-2 flex justify-center items-center">
-  <video
+  {/* <video
     autoPlay
     muted
     loop
@@ -80,7 +106,7 @@ export default function Home() {
   >
     <source src="/motherboard.mp4" type="video/mp4" />
     Your browser does not support the video tag.
-  </video>
+  </video> */}
 </div>
             <div className="mt-3 text-center">
               <p className="text-sm font-mono text-[#808080] italic">&quot;In a world of chaos, Layer4 offers the ultimate commitment to holding.&quot;</p>

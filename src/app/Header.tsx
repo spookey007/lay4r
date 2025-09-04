@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
+  const pathname = usePathname();
+
   return (
     <header className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-[#808080] pb-4 mb-6 gap-4 px-4 sm:px-6 pt-6 bg-[#fff] w-full" style={{ fontFamily: "'LisaStyle', monospace" }}>
       <div className="flex items-center gap-3">
@@ -11,17 +16,23 @@ export default function Header() {
         <span className="text-2xl font-bold font-[Courier_New,monospace] tracking-tight">Layer4</span>
       </div>
       <nav className="flex gap-1 text-base bg-[#f0f0f0] border-2 border-[#808080] rounded">
-        <Link 
-          href="/" 
-          className="flex items-center gap-2 font-semibold px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] last:border-r-0"
+        <Link
+          href="/"
+          className={`flex items-center gap-2 font-semibold px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/" ? "bg-[#0000ff] text-white" : ""}`}
         >
           🏠 Home
         </Link>
-        <Link 
-          href="/whitepaper" 
-          className="flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] last:border-r-0"
+        <Link
+          href="/whitepaper"
+          className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/whitepaper" ? "bg-[#0000ff] text-white" : ""}`}
         >
           📄 Whitepaper
+        </Link>
+        <Link
+          href="/motherboard"
+          className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors ${pathname === "/motherboard" ? "bg-[#0000ff] text-white" : ""}`}
+        >
+          🖥️ Motherboard
         </Link>
       </nav>
     </header>
