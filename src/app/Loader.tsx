@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 
 export default function Loader({ children }: { children: React.ReactNode }) {
@@ -21,9 +21,11 @@ export default function Loader({ children }: { children: React.ReactNode }) {
   const [audioStarted, setAudioStarted] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [showAudioPrompt, setShowAudioPrompt] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const startLoading = () => {
+  const startLoading = useCallback(() => {
     if (!started) {
       setStarted(true);
       setLoading(true);
@@ -37,9 +39,9 @@ export default function Loader({ children }: { children: React.ReactNode }) {
         setAudioStarted(true);
       }
     }
-  };
+  }, [started, audioEnabled]);
 
-  const toggleAudio = () => {
+  const toggleAudio = useCallback(() => {
     if (audioRef.current) {
       if (audioEnabled) {
         audioRef.current.pause();
@@ -51,9 +53,9 @@ export default function Loader({ children }: { children: React.ReactNode }) {
         setAudioEnabled(true);
       }
     }
-  };
+  }, [audioEnabled]);
 
-  const startAudio = async () => {
+  const startAudio = useCallback(async () => {
     if (audioRef.current && audioEnabled) {
       try {
         audioRef.current.loop = true;
@@ -66,7 +68,17 @@ export default function Loader({ children }: { children: React.ReactNode }) {
         setShowAudioPrompt(true);
       }
     }
-  };
+  }, [audioEnabled]);
+
+  const handleVideoLoad = useCallback(() => {
+    setVideoLoaded(true);
+  }, []);
+
+  const handleVideoError = useCallback((e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.log("Video failed to load:", e);
+    const videoElement = e.target as HTMLVideoElement;
+    videoElement.style.display = 'none';
+  }, []);
 
   useEffect(() => {
     if (started) {
@@ -122,79 +134,97 @@ export default function Loader({ children }: { children: React.ReactNode }) {
           <source src="/aceofbase.mp3" type="audio/mpeg" />
         </audio>
         <div
-          className="flex flex-col items-center justify-center min-h-screen bg-white p-4"
+          className="flex flex-col items-center justify-center min-h-screen bg-white p-4 relative"
           style={{
-            fontFamily: "'LisaStyle', monospace",
-            backgroundImage: "url('/logo02.jpg')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat"
+            fontFamily: "'LisaStyle', monospace"
           }}
         >
-
-    {/* CRT Scanlines Overlay (retro feel) */}
-    <div className="pointer-events-none fixed inset-0 opacity-20 z-10" style={{
-      backgroundImage: `
-        repeating-linear-gradient(
-          0deg,
-          rgba(0, 255, 0, 0.03),
-          rgba(0, 255, 0, 0.03) 1px,
-          transparent 1px,
-          transparent 2px
-        )
-      `,
-    }}></div>
+          {/* Video Background - Smooth Loading Only */}
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-2000 ease-in-out ${
+              videoLoaded ? 'opacity-100' : 'opacity-100'
+            }`}
+            onLoadedData={handleVideoLoad}
+            onError={handleVideoError}
+          >
+            <source src="/layer4_xfade.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
 
     {/* Main Terminal Window */}
-    <div className="max-w-md w-full bg-transparent">
-      
-
-
+    <div className="max-w-md w-full bg-transparent relative z-30">
       {/* Terminal Content */}
       <div className="p-6 text-center space-y-6">
-        
         {/* Disk Insert Animation */}
-        <div className="relative mx-auto w-48 h-60 rounded-lg flex items-center justify-center overflow-hidden">
+        <div className="relative mx-auto w-48 h-60 rounded-lg flex items-center justify-center overflow-hidden group">
           <Image
             src="/aceofbase.png"
             alt="System Disk: Ace of Base - The Sign"
             fill
-            className="rounded shadow-lg transition-transform hover:scale-105 duration-300 object-cover"
+            className="rounded shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:shadow-cyan-500/25 object-cover"
             style={{ imageRendering: 'pixelated' }}
           />
+          {/* Glow effect on hover */}
+          <div className="absolute inset-0 rounded-lg bg-cyan-400 opacity-0 group-hover:opacity-10 transition-opacity duration-500"></div>
         </div>
 
         {/* Audio Toggle - positioned right below the image */}
         <div className="flex justify-center">
           <button
             onClick={toggleAudio}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-mono border-2 border-cyan-400 bg-gray-900 text-cyan-400 hover:bg-cyan-400 hover:text-gray-900 transition-all duration-300 font-bold shadow-[0_0_8px_#00ffff]"
+            className="flex items-center gap-2 px-6 py-3 text-sm font-mono border-2 border-cyan-400 bg-gray-900/80 backdrop-blur-sm text-cyan-400 hover:bg-cyan-400 hover:text-gray-900 transition-all duration-300 font-bold shadow-[0_0_12px_#00ffff] hover:shadow-[0_0_20px_#00ffff] rounded-lg"
           >
-            {audioEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF'}
+            <span className="text-lg">{audioEnabled ? '🔊' : '🔇'}</span>
+            <span>Sound: {audioEnabled ? 'ON' : 'OFF'}</span>
           </button>
         </div>
 
         {/* Launch Button */}
         <button
           onClick={startLoading}
-          className="w-full py-4 bg-yellow-400 border-2 border-yellow-400 text-black-400 font-bold uppercase tracking-wider text-xl hover:bg-yellow-400 hover:text-gray-900 transition-all duration-300 font-mono group shadow-[0_0_12px_#ffff00] font-extrabold"
+          className="w-full py-4 bg-yellow-400 border-2 border-yellow-400 text-black font-bold uppercase tracking-wider text-xl hover:bg-yellow-300 hover:text-gray-900 transition-all duration-300 font-mono group shadow-[0_0_15px_#ffff00] hover:shadow-[0_0_25px_#ffff00] font-extrabold rounded-lg relative overflow-hidden"
         >
-          <span className="group-hover:animate-pulse">▶ Launch Layer4</span>
+          <span className="group-hover:animate-pulse relative z-10">▶ Launch Layer4</span>
+          {/* Button glow effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-yellow-300 to-yellow-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
         </button>
 
       </div>
     </div>
 
-    {/* Optional: Glitch Effect on Click (add to body or use JS later) */}
+    {/* Enhanced Glitch Effect */}
     <style jsx>{`
       @keyframes glitch {
-        0% { opacity: 1; }
-        2% { opacity: 0; transform: translateX(2px); }
-        4% { opacity: 1; }
-        100% { opacity: 1; }
+        0% { opacity: 1; transform: translateX(0); }
+        2% { opacity: 0.8; transform: translateX(-1px); }
+        4% { opacity: 1; transform: translateX(1px); }
+        6% { opacity: 0.9; transform: translateX(-1px); }
+        8% { opacity: 1; transform: translateX(0); }
+        100% { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes scanline {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100vh); }
       }
       .glitch-active {
         animation: glitch 0.3s ease-in-out;
+      }
+      .scanline {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.3), transparent);
+        animation: scanline 3s linear infinite;
+        pointer-events: none;
+        z-index: 25;
       }
     `}</style>
       </div>
@@ -209,52 +239,54 @@ export default function Loader({ children }: { children: React.ReactNode }) {
           <source src="/aceofbase.mp3" type="audio/mpeg" />
         </audio>
         <div
-          className="flex flex-col items-center justify-center min-h-screen bg-white p-4"
+          className="flex flex-col items-center justify-center min-h-screen bg-white p-4 relative"
           style={{
-            fontFamily: "'LisaStyle', monospace",
-            backgroundImage: "url('/logo02.jpg')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat"
+            fontFamily: "'LisaStyle', monospace"
           }}
         >
-          <div className="vintage-container max-w-lg w-full shadow-lg relative bg-white bg-opacity-90">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Layer4 Boot Sequence</h2>
-            {/* <div className="flex gap-1">
-              <div className="w-3 h-3 bg-[#ff5f57] rounded-full"></div>
-              <div className="w-3 h-3 bg-[#ffbd2e] rounded-full"></div>
-              <div className="w-3 h-3 bg-[#28c940] rounded-full"></div>
-            </div> */}
-          </div>
+          {/* Video Background - Smooth Loading Only */}
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-2000 ease-in-out ${
+              videoLoaded ? 'opacity-100' : 'opacity-100'
+            }`}
+            onLoadedData={handleVideoLoad}
+            onError={handleVideoError}
+          >
+            <source src="/layer4.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
           
-          <div className="mb-2 font-mono text-sm h-6">{message}</div>
-          
-          <div className="w-full bg-white border-2 border-[#808080] rounded mb-6 h-6">
-            <div 
-              className="bg-[#0000ff] h-full rounded flex items-center justify-center text-white text-xs font-bold transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            >
-              {progress}%
+          <div className="vintage-container max-w-lg w-full shadow-2xl relative bg-white/95 backdrop-blur-sm z-30 rounded-lg border border-gray-200">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800">Layer4 Boot Sequence</h2>
             </div>
-          </div>
-          
-          {/* {showAudioPrompt && (
-            <div className="border-2 border-[#808080] rounded bg-white p-4 mb-4">
-              <p className="text-center mb-3">Audio is muted. Click below to enable system sounds:</p>
-              <div className="text-center">
-                <button 
-                  onClick={startAudio}
-                  className="button-lisa"
-                >
-                  Enable Audio
-                </button>
+            
+            <div className="mb-4 font-mono text-sm h-6 text-gray-700 flex items-center">
+              <span className="animate-pulse mr-2">●</span>
+              {message}
+            </div>
+            
+            <div className="w-full bg-gray-200 border-2 border-gray-300 rounded-lg mb-6 h-8 overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-lg flex items-center justify-center text-white text-xs font-bold transition-all duration-500 ease-out relative"
+                style={{ width: `${progress}%` }}
+              >
+                <span className="relative z-10">{progress}%</span>
+                {/* Progress bar shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
               </div>
             </div>
-          )} */}
-          
-          <div className="text-center text-xs text-gray-600 mt-4">
-            <p>Layer4 Protocol - Unbreakable Stability</p>
+            
+            <div className="text-center text-xs text-gray-600 mt-4">
+              <p className="font-mono">Layer4 Protocol - Unbreakable Stability</p>
+            </div>
           </div>
           </div>
         </div>

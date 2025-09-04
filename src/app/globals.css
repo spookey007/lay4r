@@ -97,6 +97,190 @@ body {
   background: var(--modern-vintage-gradient);
 }
 
+/* Lisa/Mac OS Classic UI with Modern Touches */
+.lisa-window {
+  background: #f0f0f0;
+  border: 2px solid #000;
+  border-radius: 8px;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3), 8px 8px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+}
+
+.lisa-titlebar {
+  background: linear-gradient(180deg, #c0c0c0 0%, #a0a0a0 100%);
+  border-bottom: 2px solid #000;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.lisa-titlebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #fff;
+  opacity: 0.5;
+}
+
+.lisa-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #000;
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.5px;
+}
+
+.lisa-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.lisa-close, .lisa-minimize, .lisa-maximize {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #000;
+  border-radius: 50%;
+  background: #ff6b6b;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lisa-close:hover { background: #ff5252; transform: scale(1.1); }
+.lisa-minimize { background: #ffd93d; }
+.lisa-minimize:hover { background: #ffcc02; transform: scale(1.1); }
+.lisa-maximize { background: #6bcf7f; }
+.lisa-maximize:hover { background: #4caf50; transform: scale(1.1); }
+
+.lisa-content {
+  padding: 16px;
+  background: #f0f0f0;
+  min-height: 200px;
+}
+
+.lisa-button {
+  background: linear-gradient(180deg, #e0e0e0 0%, #c0c0c0 100%);
+  border: 2px solid #000;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 12px;
+  color: #000;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.lisa-button:hover {
+  background: linear-gradient(180deg, #f0f0f0 0%, #d0d0d0 100%);
+  transform: translateY(-1px);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+}
+
+.lisa-button:active {
+  transform: translateY(1px);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.lisa-button-primary {
+  background: linear-gradient(180deg, #4a90e2 0%, #357abd 100%);
+  color: #fff;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.lisa-button-primary:hover {
+  background: linear-gradient(180deg, #5ba0f2 0%, #4a90e2 100%);
+}
+
+.lisa-card {
+  background: #f8f8f8;
+  border: 2px solid #000;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.lisa-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.lisa-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #000;
+}
+
+.lisa-tab {
+  background: linear-gradient(180deg, #d0d0d0 0%, #b0b0b0 100%);
+  border: 2px solid #000;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 12px;
+  color: #000;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.lisa-tab.active {
+  background: linear-gradient(180deg, #f0f0f0 0%, #e0e0e0 100%);
+  z-index: 1;
+  margin-bottom: -2px;
+}
+
+.lisa-tab:hover:not(.active) {
+  background: linear-gradient(180deg, #e0e0e0 0%, #c0c0c0 100%);
+}
+
+/* Modern touches */
+.lisa-window {
+  backdrop-filter: blur(10px);
+  background: rgba(240, 240, 240, 0.95);
+}
+
+.lisa-content {
+  background: rgba(248, 248, 248, 0.8);
+}
+
+.lisa-card {
+  background: rgba(248, 248, 248, 0.9);
+  backdrop-filter: blur(5px);
+}
+
+/* Grid improvements */
+.lisa-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+@media (min-width: 768px) {
+  .lisa-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .lisa-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .window {
   border: 2px solid var(--border);
   background: var(--background);

@@ -37,8 +37,31 @@ Security audits? Unnecessary – retards don’t hack what they can’t sell.
 • Total Supply: 1,000,000,000 L4 tokens (because big numbers look cool).
 • Distribution:
 • 100% to initial buyers via a single, time-limited sale event.
-• 0% to team (we’re retards, not greedy).
-• 0% to marketing (no community, remember?).`;
+• 0% to team (we're retards, not greedy).
+• 0% to marketing (no community, remember?).
+
+• Utility: Pure holding. Use cases include bragging rights, inheritance planning, and psychological stability.
+• Inflation/Deflation: None. Tokens are static post-distribution.
+• Burn Mechanism: Accidental burns only, via user error.
+
+Economic Model: Value accrues through scarcity and enforced HODL. Price? Irrelevant – you can't sell anyway.
+
+6. Roadmap
+• Phase 1: Launch (Q1 2025): Deploy Layer 4 Tek. Open one-time sale.
+• Phase 2: Lockdown (Q2 2025): Activate NFS. Ban all DEX attempts.
+• Phase 3: Silence (Ongoing): Erase all traces of community. Let stability reign.
+• Phase 4: Eternity: Hold forever. No updates needed.
+
+No forks, no upgrades – perfection is already achieved.
+
+7. Risks and Disclaimers
+• You Can't Sell: Seriously, don't buy if you ever want liquidity.
+• Retard Risk: This project embraces stupidity; outcomes may vary.
+• Regulatory Note: L4 may be classified as a "joke" by authorities, but we're serious about no selling.
+• No Guarantees: Financial stability is promised but not insured.
+
+Conclusion
+L4: Layer 4 Tek redefines cryptocurrency by stripping away everything that makes it risky. No fucking selling. No DEX. No community. Just pure, retard-proof stability. Join the future – or don't. Either way, once in, you're in forever.`;
 
   return (
     <div className="flex flex-col flex-1 py-4" style={{ fontFamily: "'LisaStyle', monospace" }}>
