@@ -105,21 +105,30 @@ export default function Home() {
             <span className="text-2xl mb-2">💰</span>
             <h4 className="font-semibold mb-1 text-sm">Current Price</h4>
             <p className="text-base font-bold text-[#0000ff] flex items-center gap-2">
-              {loading ? (
-                <span className="animate-pulse">Loading...</span>
-              ) : (
-                tokenData.price
-              )}
-              {!loading && (
-                <button 
-                  onClick={fetchTokenData}
-                  className="text-xs text-gray-500 hover:text-[#0000ff] transition-colors"
-                  title="Refresh price"
-                >
-                  🔄
-                </button>
-              )}
-            </p>
+            {loading ? (
+              <span className="animate-pulse">Loading...</span>
+            ) : (
+              <a
+                href="https://t.co/nBJb6rNmlw"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+              >
+                {tokenData.price}
+              </a>
+            )}
+
+            {!loading && (
+              <button
+                onClick={fetchTokenData}
+                className="text-xs text-gray-500 hover:text-[#0000ff] transition-colors"
+                title="Refresh price"
+              >
+                🔄
+              </button>
+            )}
+          </p>
+
           </div>
           <div className="lisa-card flex flex-col items-center">
             <span className="text-2xl mb-2">📊</span>
