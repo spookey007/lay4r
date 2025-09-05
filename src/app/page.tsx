@@ -95,19 +95,19 @@ const fetchTokenData = async () => {
             </div>
           </div>
           <div className="flex-1 flex flex-col justify-center min-w-0">
-<div className="p-2 flex justify-center items-center">
-  {/* <video
-    autoPlay
-    muted
-    loop
-    playsInline
-    className="rounded border border-[#808080] max-w-full h-auto object-cover"
-    style={{ width: '400px', height: '280px' }}
-  >
-    <source src="/motherboard.mp4" type="video/mp4" />
-    Your browser does not support the video tag.
-  </video> */}
-</div>
+            <div className="p-2 flex justify-center items-center">
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="rounded border border-[#808080] max-w-full h-auto object-cover"
+                style={{ width: '400px', height: '280px' }}
+              >
+                <source src="/motherboard.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
             <div className="mt-3 text-center">
               <p className="text-sm font-mono text-[#808080] italic">&quot;In a world of chaos, Layer4 offers the ultimate commitment to holding.&quot;</p>
             </div>
