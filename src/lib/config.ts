@@ -42,6 +42,11 @@ export const config = {
 
 // Helper function to get API URL
 export const getApiUrl = (endpoint: string = '') => {
+  // In production, use relative URLs to hit Next.js API routes
+  if (config.isProduction) {
+    return `/api${endpoint}`;
+  }
+  // In development, use the backend server
   return `${config.api.baseUrl}${endpoint}`;
 };
 
