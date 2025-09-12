@@ -1,5 +1,96 @@
 @import "tailwindcss";
 
+/* Mobile optimizations for chat widget */
+@media (max-width: 768px) {
+  /* Improve touch targets */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  /* Prevent zoom on input focus */
+  input[type="text"],
+  input[type="email"],
+  textarea {
+    font-size: 16px;
+  }
+  
+  /* Smooth scrolling */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better button feedback */
+  button:active {
+    transform: scale(0.98);
+  }
+  
+  /* Prevent text selection on buttons */
+  button {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Optimize modal animations */
+  .modal-enter {
+    animation: modalEnter 0.2s ease-out;
+  }
+  
+  .modal-exit {
+    animation: modalExit 0.15s ease-in;
+  }
+  
+  @keyframes modalEnter {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  @keyframes modalExit {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+  
+  /* Enhanced mobile chat experience */
+  .chat-widget {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
+  }
+  
+  /* Better spacing for mobile */
+  .mobile-padding {
+    padding: 1rem;
+  }
+  
+  /* Improved button sizes for mobile */
+  .mobile-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better text sizing for mobile */
+  .mobile-text {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  /* Smooth transitions */
+  .smooth-transition {
+    transition: all 0.2s ease-in-out;
+  }
+}
 
 @font-face {
   font-family: 'LisaStyle';
@@ -27,6 +118,26 @@
   --padding-unit: 8px;
   --vintage-shadow: 3px 3px 0 rgba(0, 0, 0, 0.1);
   --modern-vintage-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Keyframes for animations */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+
+/* Animation classes */
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}
+
+.animate-pulse {
+  animation: pulse-slow 2s ease-in-out infinite;
 }
 
 body {
@@ -356,4 +467,9 @@ body {
   .grid-container {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+.filepond--credits {
+  display: none;
+
 }
