@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 // Deprecated: not used when using backend server
 export const dynamic = "force-static";
 
