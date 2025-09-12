@@ -4,9 +4,9 @@ import { PublicKey } from '@solana/web3.js';
 
 export async function POST(request: NextRequest) {
   try {
-    const { walletAddress, signature, message } = await request.json();
+    const { walletAddress, signature, nonce } = await request.json();
 
-    if (!walletAddress || !signature || !message) {
+    if (!walletAddress || !signature || !nonce) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
