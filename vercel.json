@@ -1,6 +1,6 @@
 {
-  "buildCommand": "prisma generate && next build",
-  "installCommand": "npm install && prisma generate",
+  "buildCommand": "chmod +x build-vercel.sh && ./build-vercel.sh",
+  "installCommand": "npm install",
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 30
@@ -13,7 +13,8 @@
   },
   "build": {
     "env": {
-      "NEXT_TELEMETRY_DISABLED": "1"
+      "NEXT_TELEMETRY_DISABLED": "1",
+      "PRISMA_GENERATE_SKIP_AUTOINSTALL": "true"
     }
   }
 }

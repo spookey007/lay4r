@@ -42,10 +42,12 @@ CORS_ORIGIN=https://your-frontend-domain.com
 
 The following files have been updated for production:
 
-- `package.json` - Updated build scripts
-- `vercel.json` - Vercel-specific configuration
+- `package.json` - Updated build scripts with prebuild hook
+- `vercel.json` - Custom build script for Prisma generation
+- `build-vercel.sh` - Dedicated Vercel build script
 - `next.config.ts` - Prisma optimization
 - `prisma/schema.prisma` - Production binary targets
+- `src/lib/prisma.ts` - Enhanced error handling
 
 ### 3. Build Process
 
@@ -71,6 +73,22 @@ If you still get Prisma errors:
 1. **Check DATABASE_URL** is correctly set
 2. **Verify Prisma generation** in build logs
 3. **Clear Vercel cache** and redeploy
+4. **Check build-vercel.sh** script execution
+5. **Verify binary targets** in prisma/schema.prisma
+
+### Common Prisma Errors
+
+#### "Prisma has detected that this project was built on Vercel"
+- **Solution**: The build-vercel.sh script ensures Prisma generation
+- **Check**: Build logs should show "Prisma Client generated successfully!"
+
+#### "PrismaClientInitializationError"
+- **Solution**: Enhanced error handling in src/lib/prisma.ts
+- **Check**: Database connection and environment variables
+
+#### Build fails during Prisma generation
+- **Solution**: Check DATABASE_URL is accessible from Vercel
+- **Fallback**: Use `PRISMA_GENERATE_SKIP_AUTOINSTALL=true` in Vercel env
 
 ### Build Failures
 
