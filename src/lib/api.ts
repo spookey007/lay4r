@@ -1,4 +1,6 @@
-export const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000/api";
+import { getApiUrl } from './config';
+
+export const API_BASE = getApiUrl();
 
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const res = await fetch(`${API_BASE}${path}`, {

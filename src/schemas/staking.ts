@@ -1,4 +1,5 @@
 // Staking Schema for Layer4 SOL to L4 Token Staking
+import { getApiUrl } from '@/lib/config';
 
 export interface StakingTransaction {
   id: string;
@@ -155,5 +156,5 @@ export const defaultStakingConfig: StakingConfig = {
   annualApr: 36.5, // 36.5% annual APR
   stakingWalletAddress: 'YOUR_SOLANA_STAKING_WALLET_ADDRESS',
   l4TokenAddress: 'EtpQtF2hZZaEMZTKCp15MmMtwjsXJGz4Z6ADCUQopump',
-  apiEndpoint: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api',
+  apiEndpoint: getApiUrl(),
 };

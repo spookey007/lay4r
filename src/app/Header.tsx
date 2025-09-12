@@ -72,7 +72,7 @@ export default function Header() {
 
     const message = `Layer4 login\n${nonce}`;
     const encoded = new TextEncoder().encode(message);
-    const signature = await signMessage(encoded, "utf8");
+    const signature = await signMessage(encoded);
     const signatureBase58 = (await import("bs58")).default.encode(signature);
 
     const loginRes = await apiFetch("/auth/login", {

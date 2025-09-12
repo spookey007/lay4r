@@ -4,6 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { io, Socket } from "socket.io-client";
 import { toast } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { getSocketUrl } from "@/lib/config";
 
 // Default avatar placeholder
 const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230066ff'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
@@ -120,7 +121,7 @@ export default function ChatWidget() {
     if (connected && user && !socket) {
       console.log('Creating socket connection...');
       
-      const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000', {
+      const newSocket = io(getSocketUrl(), {
         auth: {
           userId: user.id,
           walletAddress: user.walletAddress

@@ -42,7 +42,7 @@ export default function AvatarUpload({
         {
           source: currentAvatarUrl,
           options: {
-            type: "local", // tells FilePond this is a local preview
+            type: "local" as const, // tells FilePond this is a local preview
             metadata: {
               // Mark as server file so FilePond doesn't try to re-upload
               // This prevents "upload" when component mounts

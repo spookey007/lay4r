@@ -7,7 +7,9 @@ import { StakingConfig, defaultStakingConfig } from '@/schemas/staking';
 // === CONFIG ===
 const L4_TOKEN_ADDRESS = 'EtpQtF2hZZaEMZTKCp15MmMtwjsXJGz4Z6ADCUQopump';
 const STAKING_WALLET_ADDRESS = 'YOUR_SOLANA_STAKING_WALLET_ADDRESS'; // Replace with actual staking wallet
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+import { getApiUrl } from '@/lib/config';
+
+const API_URL = getApiUrl();
 
 // === INTERFACES ===
 interface StakingInfo {
