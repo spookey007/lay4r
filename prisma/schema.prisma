@@ -9,11 +9,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  user
-  admin
-}
-
 model User {
   id            String    @id @default(cuid())
   createdAt     DateTime  @default(now())
@@ -28,7 +23,7 @@ model User {
   emailVerifiedAt DateTime?
   emailOtp        String?
   emailOtpExpiresAt DateTime?
-  role          Role      @default(user)
+  role          Int       @default(1) // 0=admin, 1=user
   sessions      Session[]
   posts         Post[]
   comments      Comment[]
@@ -43,6 +38,11 @@ model User {
   
   // Conversation participants
   conversations ConversationParticipant[]
+  
+  // Staking relationships
+  stakingTransactions StakingTransaction[]
+  stakingRewards      StakingReward[]
+  stakingPositions    StakingPosition[]
 }
 
 model Session {
@@ -171,4 +171,64 @@ model ConversationParticipant {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
+}
+
+// Staking Models
+model StakingTransaction {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  walletAddress String
+  solAmount     Decimal  @db.Decimal(18, 9) // SOL amount staked
+  l4Amount      Decimal  @db.Decimal(18, 9) // L4 tokens received
+  l4Price       Decimal  @db.Decimal(18, 9) // L4 price at time of staking
+  txHash        String   @unique
+  status        String   @default("pending") // pending, confirmed, failed
+  confirmedAt   DateTime?
+  blockNumber   BigInt?
+  lockPeriodDays Int     @default(180) // Lock period in days
+  apr           Decimal  @db.Decimal(5, 4) // APR at time of staking (e.g., 0.3650 for 36.5%)
+  
+  @@index([walletAddress])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model StakingPosition {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  walletAddress   String   @unique
+  totalStaked     Decimal  @default(0) @db.Decimal(18, 9) // Total SOL staked
+  totalL4Received Decimal  @default(0) @db.Decimal(18, 9) // Total L4 tokens received
+  totalRewards    Decimal  @default(0) @db.Decimal(18, 9) // Total rewards earned
+  pendingRewards  Decimal  @default(0) @db.Decimal(18, 9) // Pending rewards to claim
+  lastStakeDate   DateTime?
+  isActive        Boolean  @default(true)
+  
+  @@index([walletAddress])
+  @@index([isActive])
+}
+
+model StakingReward {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  walletAddress String
+  rewardAmount  Decimal  @db.Decimal(18, 9) // Reward amount in SOL
+  claimTxHash   String?  @unique
+  claimedAt     DateTime?
+  daysStaked    Int      // Days staked when reward was calculated
+  apr           Decimal  @db.Decimal(5, 4) // APR when reward was calculated
+  transactionId String?  // Reference to the staking transaction
+  
+  @@index([walletAddress])
+  @@index([claimedAt])
+  @@index([createdAt])
 }

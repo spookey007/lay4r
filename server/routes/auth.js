@@ -102,14 +102,17 @@ router.post('/login', async (req, res) => {
 
   await prisma.nonce.delete({ where: { id: nonceRow.id } });
 
-  const adminList = (process.env.ADMIN_WALLETS || '').split(',').map(s => s.trim()).filter(Boolean);
-  const isAdmin = adminList.includes(walletAddress);
-
-  const user = await prisma.user.upsert({
-    where: { walletAddress },
-    update: isAdmin ? { role: 'admin' } : {},
-    create: { walletAddress, role: isAdmin ? 'admin' : 'user' },
+  // Check if user exists and get their role
+  let user = await prisma.user.findUnique({
+    where: { walletAddress }
   });
+
+  // If user doesn't exist, create them as a regular user (role 1)
+  if (!user) {
+    user = await prisma.user.create({
+      data: { walletAddress, role: 1 }
+    });
+  }
 
   const token = randomHex(32);
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -129,6 +132,7 @@ router.post('/login', async (req, res) => {
       id: user.id,
       walletAddress: user.walletAddress,
       role: user.role,
+      isAdmin: user.role === 0,
     },
   });
 });
@@ -161,10 +165,13 @@ router.get('/me', async (req, res) => {
       walletAddress: user.walletAddress, 
       username: user.username, 
       role: user.role, 
+      isAdmin: user.role === 0,
       displayName: user.displayName, 
       avatarUrl: user.avatarUrl,
       avatarBlob: user.avatarBlob,
-      bio: user.bio 
+      bio: user.bio,
+      email: user.email,
+      emailVerified: user.emailVerifiedAt ? true : false
     } 
   });
 });
@@ -210,6 +217,171 @@ router.post('/upload-avatar', avatarUpload.single('avatar'), async (req, res) =>
   } catch (error) {
     console.error('Avatar upload error:', error);
     res.status(500).json({ error: 'Failed to upload avatar' });
+  }
+});
+
+// Update user profile
+router.put('/update', async (req, res) => {
+  try {
+    const token = req.cookies?.l4_session;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    const session = await prisma.session.findUnique({ where: { token }, include: { user: true } });
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { username, displayName, bio, email, avatarBlob, avatarUrl } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        username: username || null,
+        displayName: displayName || null,
+        bio: bio || null,
+        email: email || null,
+        avatarBlob: avatarBlob || null,
+        avatarUrl: avatarUrl || null,
+      }
+    });
+
+    res.json({ 
+      user: { 
+        id: updatedUser.id, 
+        walletAddress: updatedUser.walletAddress, 
+        username: updatedUser.username, 
+        role: updatedUser.role, 
+        isAdmin: updatedUser.role === 0,
+        displayName: updatedUser.displayName, 
+        avatarUrl: updatedUser.avatarUrl,
+        avatarBlob: updatedUser.avatarBlob,
+        bio: updatedUser.bio,
+        email: updatedUser.email,
+        emailVerified: updatedUser.emailVerifiedAt ? true : false
+      } 
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Request email verification
+router.post('/email/request', async (req, res) => {
+  try {
+    const token = req.cookies?.l4_session;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    const session = await prisma.session.findUnique({ where: { token }, include: { user: true } });
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Store OTP in user record
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { 
+        email: email,
+        emailOtp: otp,
+        emailOtpExpiresAt: expiresAt
+      }
+    });
+
+    // TODO: Send email with OTP (implement email service)
+    console.log(`Email verification OTP for ${email}: ${otp}`);
+
+    res.json({ message: 'Verification code sent to your email' });
+  } catch (error) {
+    console.error('Email request error:', error);
+    res.status(500).json({ error: 'Failed to send verification email' });
+  }
+});
+
+// Verify email with OTP
+router.post('/email/verify', async (req, res) => {
+  try {
+    const token = req.cookies?.l4_session;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    const session = await prisma.session.findUnique({ where: { token }, include: { user: true } });
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { otp } = req.body;
+    if (!otp) return res.status(400).json({ error: 'OTP is required' });
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id }
+    });
+
+    if (!user || user.emailOtp !== otp || !user.emailOtpExpiresAt || user.emailOtpExpiresAt < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    // Mark email as verified
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { 
+        emailVerifiedAt: new Date(),
+        emailOtp: null,
+        emailOtpExpiresAt: null
+      }
+    });
+
+    res.json({ message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Email verify error:', error);
+    res.status(500).json({ error: 'Failed to verify email' });
+  }
+});
+
+// Promote user to admin (only for existing admins)
+router.post('/promote-admin', async (req, res) => {
+  try {
+    const token = req.cookies?.l4_session;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    const session = await prisma.session.findUnique({ where: { token }, include: { user: true } });
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if current user is admin
+    if (session.user.role !== 0) {
+      return res.status(403).json({ error: 'Only admins can promote users' });
+    }
+
+    const { walletAddress } = req.body;
+    if (!walletAddress) return res.status(400).json({ error: 'walletAddress required' });
+
+    const user = await prisma.user.findUnique({ where: { walletAddress } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const updatedUser = await prisma.user.update({
+      where: { walletAddress },
+      data: { role: 0 }
+    });
+
+    res.json({ 
+      message: 'User promoted to admin successfully',
+      user: {
+        id: updatedUser.id,
+        walletAddress: updatedUser.walletAddress,
+        role: updatedUser.role,
+        isAdmin: updatedUser.role === 0
+      }
+    });
+  } catch (error) {
+    console.error('Promote admin error:', error);
+    res.status(500).json({ error: 'Failed to promote user to admin' });
   }
 });
 

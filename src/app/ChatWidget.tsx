@@ -109,6 +109,7 @@ export default function ChatWidget() {
   const [switchingChat, setSwitchingChat] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
 
   useEffect(() => {
     import("@/lib/api").then(({ apiFetch }) =>
@@ -368,8 +369,10 @@ export default function ChatWidget() {
   }, [messages, activeRoom, user]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || isLoadingChats) return;
     
+    console.log("ChatWidget: Loading chats, open:", open, "isLoadingChats:", isLoadingChats);
+    setIsLoadingChats(true);
     setLoadingRooms(true);
     
     // Load unified chats (rooms + users) from single endpoint
@@ -436,6 +439,7 @@ export default function ChatWidget() {
         
         setRooms(sortedList);
         setLoadingRooms(false);
+        setIsLoadingChats(false);
         
         // Set active room to L4 Community if available, otherwise first available
         if (sortedList.length > 0) {
@@ -449,7 +453,17 @@ export default function ChatWidget() {
       }).catch((error) => {
         console.error("Failed to load chats from API:", error);
         setLoadingRooms(false);
-        // Set fallback L4 Community room
+        setIsLoadingChats(false);
+        
+        // Check if it's an authentication error
+        if (error.message?.includes("Authentication required") || error.message?.includes("Please log in")) {
+          console.log("User not authenticated, showing login prompt");
+          // You could show a login modal or redirect here
+          setRooms([]);
+          return;
+        }
+        
+        // Set fallback L4 Community room for other errors
         setRooms([{
           id: "l4-community",
           name: "L4 Community",
@@ -463,6 +477,12 @@ export default function ChatWidget() {
         setActiveRoom("l4-community");
       })
     );
+    
+    // Cleanup function to reset loading state
+    return () => {
+      setIsLoadingChats(false);
+      setLoadingRooms(false);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -1074,27 +1094,36 @@ export default function ChatWidget() {
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setOpen(true)}
             aria-label="Open chat"
-            className="fixed bottom-4 right-4 z-40 rounded-full shadow-lg border-2 border-[#808080] bg-[#0000ff] text-white w-14 h-14 flex items-center justify-center hover:opacity-90 transition-all duration-200"
+            className="fixed bottom-6 right-6 z-40 rounded-2xl text-white flex items-center gap-3 px-4 py-3 transition-all duration-300"
+            style={{
+              background: 'linear-gradient(135deg, #1a1a1a 0%, #000000 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
           >
             <motion.div
               animate={{ 
-                y: [0, -5, 0],
-                rotate: [0, 5, -5, 0]
+                scale: [1, 1.05, 1],
+                rotate: [0, 2, -2, 0]
               }}
               transition={{ 
-                duration: 2,
+                duration: 3,
                 repeat: Infinity,
                 ease: "easeInOut"
               }}
+              className="relative"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 12H8.01M12 12H12.01M16 12H16.01M21 12C21 16.418 16.97 20 12 20C10.88 20 9.84 19.81 8.9 19.48L3 21L4.52 15.1C4.19 14.16 4 13.12 4 12C4 7.582 8.03 4 12 4C16.97 4 21 7.582 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white drop-shadow-lg">
+                <path d="M8 12H8.01M12 12H12.01M16 12H16.01M21 12C21 16.418 16.97 20 12 20C10.88 20 9.84 19.81 8.9 19.48L3 21L4.52 15.1C4.19 14.16 4 13.12 4 12C4 7.582 8.03 4 12 4C16.97 4 21 7.582 21 12Z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
+              {/* Subtle inner glow */}
+              <div className="absolute inset-0 rounded-2xl bg-white/5 blur-sm"></div>
             </motion.div>
+            <span className="text-sm font-medium text-white drop-shadow-lg">Mainnet Chat</span>
           </motion.button>
         )}
       </AnimatePresence>
@@ -1102,50 +1131,59 @@ export default function ChatWidget() {
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            initial={{ opacity: 0, scale: 0.3, y: 100, rotateX: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
+            exit={{ opacity: 0, scale: 0.3, y: 100, rotateX: 15 }}
             transition={{ 
               type: "spring", 
-              stiffness: 300, 
-              damping: 30,
-              duration: 0.3
+              stiffness: 400, 
+              damping: 25,
+              duration: 0.6,
+              ease: [0.25, 0.46, 0.45, 0.94]
             }}
-            className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-40 w-full h-full md:w-[680px] md:h-[720px] md:max-h-[90vh]"
+            className="fixed inset-0 md:inset-auto md:bottom-6 md:right-6 z-40 w-full h-full md:w-[720px] md:h-[800px] md:max-h-[90vh]"
+            style={{
+              transformOrigin: "bottom right"
+            }}
           >
             <motion.div 
-              className="bg-white border border-gray-200 rounded-xl md:rounded-2xl shadow-2xl h-full flex flex-col overflow-hidden backdrop-blur-sm bg-white/95"
+              className="bg-black border border-gray-800 rounded-2xl shadow-2xl h-full flex flex-col overflow-hidden backdrop-blur-sm"
               initial={{ borderRadius: "50%" }}
-              animate={{ borderRadius: "12px" }}
-              transition={{ duration: 0.3 }}
+              animate={{ borderRadius: "16px" }}
+              transition={{ duration: 0.6 }}
+              style={{
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+              }}
             >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white text-lg md:text-xl font-bold shadow-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-black/50 backdrop-blur-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-lg">
                   💬
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm md:text-lg text-gray-800">Layer4 Chat</h3>
-                  <span className="text-xs md:text-sm text-gray-500 hidden md:block">Connect with the community</span>
+                  <h3 className="font-bold text-lg text-white">Messages</h3>
+                  <span className="text-sm text-gray-400 hidden md:block">Layer4 Community</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 md:gap-3">
+              <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setShowUserSearch(true)}
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-all duration-200 touch-manipulation shadow-sm hover:shadow-md"
-                  title="Find people to chat with"
+                  className="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center transition-all duration-200"
+                  title="New Message"
                 >
-                  <svg width="16" height="16" className="md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
+                    <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M22 6L12 13L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="18" cy="8" r="2" fill="currentColor"/>
                   </svg>
                 </button>
                 <button 
                   onClick={() => setOpen(false)}
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-red-50 active:bg-red-100 transition-all duration-200 touch-manipulation shadow-sm hover:shadow-md"
-                  title="Close chat"
+                  className="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center transition-all duration-200"
+                  title="Close"
                 >
-                  <svg width="16" height="16" className="md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
                     <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
@@ -1531,7 +1569,7 @@ export default function ChatWidget() {
                             </div>
                           )}
                         </div>
-                         <button 
+                        <button 
                            onClick={sendMessage} 
                            disabled={(!text.trim() && !selectedImage)}
                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 active:from-blue-700 active:to-indigo-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center touch-manipulation min-w-[48px] shadow-lg hover:shadow-xl disabled:shadow-none"

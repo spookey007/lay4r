@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import StakingModal from './StakingModal';
 import { StakingConfig, defaultStakingConfig } from '@/schemas/staking';
+import { createStakingTransaction, sendStakingTransaction, getWalletBalance } from '@/lib/solana';
+import { PublicKey } from '@solana/web3.js';
 
 // === CONFIG ===
 const L4_TOKEN_ADDRESS = 'EtpQtF2hZZaEMZTKCp15MmMtwjsXJGz4Z6ADCUQopump';
@@ -55,6 +57,7 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
   const [l4Amount, setL4Amount] = useState('0');
   const [l4Price, setL4Price] = useState(0);
   const [isLoadingStakingInfo, setIsLoadingStakingInfo] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'stake' | 'unstake' | 'info'>('stake');
   const [modalConfig, setModalConfig] = useState({
@@ -159,17 +162,33 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
   useEffect(() => {
     if (walletAddress) {
       fetchStakingInfo();
+      fetchWalletBalance();
       // Refresh staking info every minute
       const interval = setInterval(fetchStakingInfo, 60000);
       return () => clearInterval(interval);
     }
   }, [walletAddress]);
 
+  const fetchWalletBalance = async () => {
+    if (!walletAddress) return;
+    try {
+      const balance = await getWalletBalance(walletAddress);
+      setWalletBalance(balance);
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+    }
+  };
+
   useEffect(() => {
     if (solAmount && l4Price > 0) {
       const sol = parseFloat(solAmount);
-      const l4 = sol / l4Price;
-      setL4Amount(l4.toFixed(2));
+      if (!isNaN(sol) && sol > 0) {
+        const l4 = sol / l4Price;
+        // More precise calculation with proper decimal handling
+        setL4Amount(l4.toFixed(6));
+      } else {
+        setL4Amount('0');
+      }
     } else {
       setL4Amount('0');
     }
@@ -178,16 +197,15 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
   // Fetch L4 token price
   const fetchL4Price = async () => {
     try {
-      const response = await fetch('https://lite-api.jup.ag/tokens/v2/search?query=EtpQtF2hZZaEMZTKCp15MmMtwjsXJGz4Z6ADCUQopump');
+      const response = await fetch(`${API_URL}/api/staking/l4-price`);
       const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const token = data[0];
-        if (token.price) {
-          setL4Price(token.price);
-        }
+      if (data.price) {
+        setL4Price(data.price);
       }
     } catch (error) {
       console.error('Error fetching L4 price:', error);
+      // Fallback to mock price
+      setL4Price(0.0001);
     }
   };
 
@@ -347,28 +365,79 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
       setIsLoading(true);
       setIsConfirming(true);
       setError('');
-      setStatus("Processing transaction...");
+      setStatus("Creating transaction...");
 
-      // Simulate transaction
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const solAmountNum = parseFloat(solAmount);
       
-      setTxHash("mock-transaction-hash-" + Date.now());
-      setStatus("Staking successful!");
+      // Check if user has sufficient balance
+      if (walletBalance < solAmountNum) {
+        throw new Error("Insufficient SOL balance");
+      }
+
+      // Create the staking transaction
+      const fromWallet = new PublicKey(walletAddress);
+      const transaction = await createStakingTransaction(fromWallet, solAmountNum);
+      
+      setStatus("Please approve the transaction in your wallet...");
+
+      // Sign and send the transaction
+      const result = await sendStakingTransaction(
+        transaction,
+        async (tx) => {
+          // Use Phantom wallet to sign the transaction
+          if (!window.solana) {
+            throw new Error('Phantom wallet not found');
+          }
+          const signedTx = await window.solana.signAndSendTransaction(tx);
+          return signedTx;
+        }
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Transaction failed');
+      }
+
+      setTxHash(result.signature);
+      setStatus("Transaction successful! Recording staking...");
+
+      // Call the staking API to record the transaction
+      const response = await fetch(`${API_URL}/api/staking/stake`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          solAmount: solAmountNum,
+          l4Price: l4Price,
+          txHash: result.signature
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to record staking transaction');
+      }
+
+      setStatus("Staking successful! Your SOL has been staked for L4 tokens.");
       setSolAmount("");
       await fetchStakingInfo();
+      await fetchWalletBalance();
       
       // Wait a moment before closing the modal to show success message
       setTimeout(() => {
         setIsModalOpen(false);
-      }, 2000);
+      }, 3000);
     } catch (error: any) {
       console.error("Error staking SOL:", error);
       if (error.message.includes("insufficient funds")) {
         setError("Insufficient SOL balance");
-      } else if (error.message.includes("user rejected")) {
+      } else if (error.message.includes("user rejected") || error.message.includes("User rejected")) {
         setError("Transaction was rejected by user");
+      } else if (error.message.includes("User cancelled")) {
+        setError("Transaction was cancelled");
       } else {
-        setError("Failed to stake SOL. Please try again.");
+        setError(error.message || "Failed to stake SOL. Please try again.");
       }
       setStatus(null);
       setIsModalOpen(false);
@@ -384,34 +453,31 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
     try {
       setIsLoading(true);
       setError('');
-      const daysStaked = stakingInfo.stakingStartDate
-        ? Math.floor((new Date().getTime() - new Date(stakingInfo.stakingStartDate).getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
       
-      const payload = {
-        walletAddress,
-        totalRewards: Number(stakingInfo.dailyApr) * daysStaked,
-        totalStaked: stakingInfo.stakedAmount
-      };
-
       const response = await fetch(`${API_URL}/api/staking/claim`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        credentials: 'include',
+        body: JSON.stringify({
+          walletAddress,
+          totalRewards: stakingInfo.pendingRewards,
+          totalStaked: stakingInfo.stakedAmount
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to claim rewards');
       }
 
       const data = await response.json();
-      setStatus(`Successfully claimed ${data.amount} SOL in rewards. Please wait up to 24 hours for the transaction to be confirmed.`);
+      setStatus(`Successfully claimed ${data.amount} SOL in rewards!`);
       await fetchStakingInfo();
     } catch (error) {
       console.error('Error claiming rewards:', error);
-      setError('Failed to claim rewards');
+      setError(error instanceof Error ? error.message : 'Failed to claim rewards');
     } finally {
       setIsLoading(false);
     }
@@ -485,7 +551,10 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
               exit="exit"
             >
               <motion.div className="mb-5 text-sm text-blue-500 font-['LisaStyle',monospace]" variants={statItemVariants}>
-                Connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                <div className="flex items-center justify-between mb-2">
+                  <span>Connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                  <span className="text-green-400">Balance: {walletBalance.toFixed(6)} SOL</span>
+                </div>
               </motion.div>
 
               {isWrongNetwork ? (
@@ -540,20 +609,80 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
                   </motion.div>
 
                   <motion.div className="mb-4 p-4 bg-black/10 rounded-xl text-white text-sm text-center font-['LisaStyle',monospace] leading-relaxed tracking-wider min-h-fit" variants={statItemVariants}>
-                    <p>Stake SOL to earn L4 tokens with 12% APR. Lock period: 30 days.</p>
+                    <p>Stake SOL to earn L4 tokens with 36.5% APR. Lock period: 180 days.</p>
+                    <p className="text-xs text-blue-400 mt-2">Daily rewards: 0.1% | Minimum stake: 0.001 SOL</p>
                   </motion.div>
 
                   <motion.div className="mb-4" variants={statItemVariants}>
-                    <input
-                      type="number"
-                      value={solAmount}
-                      onChange={(e) => setSolAmount(e.target.value)}
-                      placeholder="Enter SOL amount"
-                      className="w-full p-3 text-sm rounded-lg border border-blue-500 mb-3 bg-black/10 text-blue-500 font-['LisaStyle',monospace]"
-                    />
-                    <div className="text-blue-500 text-sm font-['LisaStyle',monospace] mb-3">
-                      L4 Price: ${l4Price.toFixed(6)} | You will receive: {l4Amount} L4
-                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.000001"
+                        min="0.001"
+                        max="1000"
+                        value={solAmount}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0)) {
+                            setSolAmount(value);
+                          }
+                        }}
+                        placeholder="Enter SOL amount (min: 0.001)"
+                        className={`w-full p-3 text-sm rounded-lg border mb-3 bg-black/10 text-blue-500 font-['LisaStyle',monospace] transition-all duration-200 ${
+                          solAmount && parseFloat(solAmount) > walletBalance 
+                            ? 'border-red-500 bg-red-500/10' 
+                            : 'border-blue-500'
+                        }`}
+                      />
+                      <button
+                        onClick={() => setSolAmount(walletBalance.toString())}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+                      >
+                        MAX
+                      </button>
+                      </div>
+                      
+                     <div className="bg-black/20 p-3 rounded-lg mb-3 border border-blue-500/30">
+                        <div className="text-blue-500 text-sm font-['LisaStyle',monospace] mb-2">
+                          <div className="flex justify-between">
+                            <span>L4 Price:</span>
+                            <span className="text-green-400">${l4Price.toFixed(6)}</span>
+                          </div>
+                        </div>
+                        <div className="text-blue-500 text-sm font-['LisaStyle',monospace] mb-2">
+                          <div className="flex justify-between">
+                            <span>You will receive:</span>
+                            <span className="text-yellow-400 font-bold">{l4Amount} L4</span>
+                          </div>
+                        </div>
+                        {solAmount && parseFloat(solAmount) > 0 && (
+                          <div className="text-blue-500 text-xs font-['LisaStyle',monospace]">
+                            <div className="flex justify-between">
+                              <span>APR:</span>
+                              <span className="text-green-400">36.5% annually</span>
+                            </div>
+                          </div>
+                        )}
+                     </div>
+                    
+                    {solAmount && parseFloat(solAmount) < 0.001 && (
+                      <div className="text-red-500 text-xs font-['LisaStyle',monospace] mb-2 flex items-center gap-1">
+                        <span>⚠️</span>
+                        <span>Minimum stake amount is 0.001 SOL</span>
+                      </div>
+                    )}
+                    {solAmount && parseFloat(solAmount) > 1000 && (
+                      <div className="text-red-500 text-xs font-['LisaStyle',monospace] mb-2 flex items-center gap-1">
+                        <span>⚠️</span>
+                        <span>Maximum stake amount is 1000 SOL</span>
+                      </div>
+                    )}
+                    {solAmount && parseFloat(solAmount) > walletBalance && (
+                      <div className="text-red-500 text-xs font-['LisaStyle',monospace] mb-2 flex items-center gap-1">
+                        <span>⚠️</span>
+                        <span>Insufficient balance. You have {walletBalance.toFixed(6)} SOL</span>
+                      </div>
+                    )}
                   </motion.div>
 
                   <motion.div className="flex flex-col gap-2" variants={statItemVariants}>
@@ -569,7 +698,7 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
                         });
                         setIsModalOpen(true);
                       }}
-                      disabled={(isLoading && !isConfirming) || !solAmount || isLoadingStakingInfo}
+                      disabled={(isLoading && !isConfirming) || !solAmount || isLoadingStakingInfo || parseFloat(solAmount) < 0.001 || parseFloat(solAmount) > 1000 || parseFloat(solAmount) > walletBalance}
                       className="bg-transparent text-blue-500 border-2 border-blue-500 hover:bg-blue-500 hover:text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-['LisaStyle',monospace] uppercase tracking-wider m-1"
                     >
                       {isConfirming ? "Confirming..." : (isLoading ? (status || "Processing...") : "Stake SOL")}
@@ -596,18 +725,22 @@ const SolanaStaking = ({ onClose, showCloseButton = false }: SolanaStakingProps 
       {status && <p className="mt-3 italic text-blue-500 font-['LisaStyle',monospace]">{status}</p>}
 
       {txHash && (
-        <div className="mt-3 text-sm break-words text-blue-500 font-['LisaStyle',monospace]">
-          <p>
-            Transaction:{" "}
+        <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+          <div className="text-green-400 text-sm font-['LisaStyle',monospace] mb-2 flex items-center gap-2">
+            <span>✅</span>
+            <span>Transaction Successful!</span>
+          </div>
+          <div className="text-blue-400 text-xs font-['LisaStyle',monospace] break-words">
+            <span>TX ID: </span>
             <a
               href={`https://solscan.io/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 no-underline"
+              className="text-blue-400 hover:text-blue-300 underline"
             >
               {txHash}
             </a>
-          </p>
+          </div>
         </div>
       )}
 

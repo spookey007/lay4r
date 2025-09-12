@@ -1,3 +1,6 @@
+// Load environment variables
+require('dotenv').config({ path: '.env.local' });
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -8,6 +11,7 @@ const dextoolsRoute = require('./routes/dextools');
 const authRoute = require('./routes/auth');
 const postsRoute = require('./routes/posts');
 const chatRoute = require('./routes/chat');
+const stakingRoute = require('./routes/staking');
 const SocketManager = require('./lib/socketManager');
 
 const app = express();
@@ -34,6 +38,7 @@ app.use('/api', dextoolsRoute);
 app.use('/api/auth', authRoute);
 app.use('/api/posts', postsRoute);
 app.use('/api/chat', chatRoute);
+app.use('/api/staking', stakingRoute);
 
 // Health check endpoint
 app.get('/', (req, res) => {
@@ -53,6 +58,9 @@ app.use((err, req, res, next) => {
 
 server.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
+  console.log('Environment variables loaded:');
+  console.log('- DATABASE_URL:', process.env.DATABASE_URL ? 'Present' : 'Missing');
+  console.log('- CORS_ORIGIN:', process.env.CORS_ORIGIN || 'Default');
 });
 
 module.exports = app;

@@ -25,7 +25,10 @@ export default function Header() {
         .then(({ apiFetch }) =>
           apiFetch("/auth/me")
             .then((r) => r.json())
-            .then((d) => setUser(d.user ?? null))
+            .then((d) => {
+              console.log("Header user data:", d.user);
+              setUser(d.user ?? null);
+            })
             .catch(() => {})
         );
     }
@@ -56,6 +59,7 @@ export default function Header() {
     try {
       const meRes = await apiFetch("/auth/me");
       const meData = await meRes.json();
+      console.log("Login meData:", meData);
       if (meData.user && meData.user.walletAddress === walletAddress) {
         setUser(meData.user);
         return;
@@ -81,6 +85,7 @@ export default function Header() {
     });
 
     const data = await loginRes.json();
+    console.log("Login response data:", data);
     setUser(data.user ?? null);
   }
 
@@ -126,10 +131,18 @@ export default function Header() {
         </Link>
         <Link
           href="/motherboard"
-          className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors ${pathname === "/motherboard" ? "bg-[#0000ff] text-white" : ""}`}
+          className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/motherboard" ? "bg-[#0000ff] text-white" : ""}`}
         >
           🖥️ Motherboard
         </Link>
+        {(user?.isAdmin || user?.role === 0) && (
+          <Link
+            href="/dashboard"
+            className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors ${pathname === "/dashboard" ? "bg-[#0000ff] text-white" : ""}`}
+          >
+            📊 Dashboard
+          </Link>
+        )}
       </nav>
       <div className="flex items-center gap-2">
         {connected && publicKey ? (
@@ -190,6 +203,17 @@ export default function Header() {
                   )}
                 </div>
                 <div className="p-1">
+                  {(user?.isAdmin || user?.role === 0) && (
+                    <button
+                      onClick={() => {
+                        setShowProfileDropdown(false);
+                        router.push("/dashboard");
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-[#f0f0f0] rounded"
+                    >
+                      📊 Dashboard
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setShowProfileDropdown(false);

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
+import { getApiUrl } from "../../lib/config";
+import { apiFetch } from "../../lib/api";
 import AvatarUpload from "./AvatarUpload";
 
 interface User {
@@ -46,8 +48,9 @@ export default function SettingsPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await apiFetch("/auth/me");
       const data = await res.json();
+      console.log("data", data);
       if (data.user) {
         setUser(data.user);
         setFormData({
@@ -111,9 +114,8 @@ export default function SettingsPage() {
       // We rely on handleRemoveAvatar() for removal, not here
 
       // Update user data
-      const res = await fetch("/api/auth/update", {
+      const res = await apiFetch("/auth/update", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...formData, ...avatarData }),
       });
 
@@ -223,9 +225,8 @@ export default function SettingsPage() {
         ? { avatarUrl: null }
         : {};
 
-      const res = await fetch("/api/auth/update", {
+      const res = await apiFetch("/auth/update", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           ...avatarData,
@@ -357,9 +358,8 @@ export default function SettingsPage() {
                                 try {
                                   // If email changed, save it first
                                   if (emailChanged) {
-                                    const saveRes = await fetch("/api/auth/update", {
+                                    const saveRes = await apiFetch("/auth/update", {
                                       method: "PUT",
-                                      headers: { "Content-Type": "application/json" },
                                       body: JSON.stringify({ ...formData }),
                                     });
                                     const saveOut = await saveRes.json();
@@ -370,7 +370,7 @@ export default function SettingsPage() {
                                     setUser(saveOut.user);
                                   }
                                   setOtpSending(true);
-                                  const r = await fetch("/api/auth/email/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: formData.email }) });
+                                  const r = await apiFetch("/auth/email/request", { method: "POST", body: JSON.stringify({ email: formData.email }) });
                                   const out = await r.json();
                                   if (!r.ok) {
                                     toast.error(out.error || "Failed to send OTP");
@@ -475,7 +475,7 @@ export default function SettingsPage() {
                     toast.error("Enter the 6-digit OTP");
                     return;
                   }
-                  const res = await fetch("/api/auth/email/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ otp }) });
+                  const res = await apiFetch("/auth/email/verify", { method: "POST", body: JSON.stringify({ otp }) });
                   const out = await res.json();
                   if (!res.ok) {
                     toast.error(out.error || "OTP verification failed");
@@ -504,7 +504,7 @@ export default function SettingsPage() {
                 try {
                   if (resendCooldown > 0) return;
                   setOtpSending(true);
-                  const r = await fetch("/api/auth/email/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: formData.email }) });
+                  const r = await apiFetch("/auth/email/request", { method: "POST", body: JSON.stringify({ email: formData.email }) });
                   const out = await r.json();
                   if (!r.ok) {
                     toast.error(out.error || "Failed to resend OTP");
