@@ -7,8 +7,13 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api',
   },
   // Ensure environment variables are available at build time
-  experimental: {
-    serverComponentsExternalPackages: ['nodemailer'],
+  serverExternalPackages: ['nodemailer', '@prisma/client'],
+  // Ensure Prisma Client is properly bundled
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push('@prisma/client');
+    }
+    return config;
   },
 };
 
