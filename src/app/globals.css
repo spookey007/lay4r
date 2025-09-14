@@ -471,5 +471,74 @@ body {
 
 .filepond--credits {
   display: none;
+}
 
+/* Chat Widget Modern UI Enhancements */
+.chat-widget {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Custom scrollbar for chat */
+.chat-widget ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-widget ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-widget ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.chat-widget ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile optimizations for chat */
+@media (max-width: 768px) {
+  .chat-widget {
+    font-size: 14px;
+  }
+  
+  .chat-widget .text-sm {
+    font-size: 13px;
+  }
+  
+  .chat-widget .text-xs {
+    font-size: 11px;
+  }
+}
+
+/* Animation enhancements */
+.chat-widget button {
+  transition: all 0.2s ease;
+}
+
+.chat-widget .hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+
+.chat-widget .hover\:scale-110:hover {
+  transform: scale(1.1);
+}
+
+/* Focus states */
+.chat-widget input:focus,
+.chat-widget textarea:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: rgb(59 130 246);
+}
+
+/* Loading animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chat-widget .animate-spin {
+  animation: spin 1s linear infinite;
 }

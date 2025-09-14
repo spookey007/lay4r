@@ -2,9 +2,9 @@
 export const config = {
   // Backend API URLs
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000/api',
-    socketUrl: process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000',
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api',
+    baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001/api',
+    socketUrl: process.env.NEXT_PUBLIC_SOCKET_URL || 'ws://localhost:3001',
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
   },
   
   // Environment detection
@@ -18,7 +18,7 @@ export const config = {
   
   // Backend server configuration
   server: {
-    port: process.env.PORT || 4000,
+    port: process.env.PORT || 3001,
   },
   
   // Database configuration
@@ -52,6 +52,11 @@ export const getApiUrl = (endpoint: string = '') => {
 
 // Helper function to get Socket URL
 export const getSocketUrl = () => {
+  // In production, use the same domain as the frontend
+  if (config.isProduction) {
+    return window.location.origin;
+  }
+  // In development, use the Express server
   return config.api.socketUrl;
 };
 

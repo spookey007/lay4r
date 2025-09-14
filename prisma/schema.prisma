@@ -9,6 +9,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 model User {
   id            String    @id @default(cuid())
   createdAt     DateTime  @default(now())
@@ -24,20 +25,29 @@ model User {
   emailOtp        String?
   emailOtpExpiresAt DateTime?
   role          Int       @default(1) // 0=admin, 1=user
+  
+  // Chat system fields
+  status        String    @default("offline") // online, idle, dnd, offline
+  lastSeen      DateTime  @default(now())
+  isVerified    Boolean   @default(false)
+  blockedUsers  String[]  @default([]) // Array of User IDs
+  mutedChannels String[]  @default([]) // Array of Channel IDs
+  
   sessions      Session[]
   posts         Post[]
   comments      Comment[]
   likes         Like[]
+  
+  // Chat relationships
   sentMessages      Message[] @relation("UserMessages")
   messageReactions  MessageReaction[]
-  messageReads      MessageRead[]
+  readReceipts      ReadReceipt[]
+  channelMembers    ChannelMember[]
+  dmChannels        Channel[] @relation("ChannelUidUser")
   
   // Follow relationships
   following     Follow[] @relation("UserFollowing")
   followers     Follow[] @relation("UserFollowers")
-  
-  // Conversation participants
-  conversations ConversationParticipant[]
   
   // Staking relationships
   stakingTransactions StakingTransaction[]
@@ -94,52 +104,6 @@ model Like {
   @@unique([userId, postId])
 }
 
-model Room {
-  id        String    @id @default(cuid())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  name      String?
-  messages  Message[]
-}
-
-model Message {
-  id             String   @id @default(uuid())
-  content        String
-  imageBlob      Bytes?   // Added field to store image blob for chat images
-  senderId       String
-  roomId         String?  // Keep for backward compatibility
-  conversationId String?  // New field for conversation-based messages
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  sender         User     @relation("UserMessages", fields: [senderId], references: [id])
-  room           Room?    @relation(fields: [roomId], references: [id])
-  conversation   Conversation? @relation(fields: [conversationId], references: [id])
-  reactions      MessageReaction[]
-  reads          MessageRead[]
-}
-
-model MessageReaction {
-  id        String   @id @default(uuid())
-  emoji     String
-  userId    String
-  messageId String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  message   Message  @relation(fields: [messageId], references: [id])
-
-  @@unique([userId, messageId, emoji])
-}
-
-model MessageRead {
-  id        String   @id @default(uuid())
-  messageId String
-  userId    String
-  readAt    DateTime @default(now())
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([messageId, userId])
-}
 
 model Follow {
   id          String   @id @default(cuid())
@@ -152,25 +116,96 @@ model Follow {
   @@unique([followerId, followingId])
 }
 
-model Conversation {
-  id        String    @id @default(cuid())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  type      String    @default("dm") // "dm" or "group"
-  name      String?   // For group conversations
-  participants ConversationParticipant[]
-  messages  Message[]
+// Chat System Models
+model Channel {
+  id            String   @id @default(cuid())
+  name          String?  // For groups, optional for DMs
+  type          String   @default("dm") // dm, text-group
+  createdBy     String   // User ID
+  uid           String?  // Other user ID for DMs (the user you're chatting with)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  isPrivate     Boolean  @default(false)
+  lastMessageId String?  // Optional, ref to Message
+  topic         String?  // Optional
+  
+  // Relationships
+  messages      Message[]
+  members       ChannelMember[]
+  lastMessage   Message? @relation("ChannelLastMessage", fields: [lastMessageId], references: [id])
+  uidUser       User?    @relation("ChannelUidUser", fields: [uid], references: [id])
+  
+  @@index([type])
+  @@index([lastMessageId])
 }
 
-model ConversationParticipant {
-  id             String       @id @default(cuid())
-  createdAt      DateTime     @default(now())
-  conversationId String
-  userId         String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+model ChannelMember {
+  id        String   @id @default(cuid())
+  channelId String
+  userId    String
+  joinedAt  DateTime @default(now())
+  
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([channelId, userId])
+  @@index([channelId])
+  @@index([userId])
+}
 
-  @@unique([conversationId, userId])
+model Message {
+  id                 String   @id @default(cuid())
+  channelId          String
+  authorId           String
+  content            String   @db.Text
+  attachments        Json?    // Array of attachment objects
+  repliedToMessageId String?  // Optional, ref to Message
+  editedAt           DateTime?
+  deletedAt          DateTime?
+  sentAt             DateTime @default(now())
+  isSystem           Boolean  @default(false)
+  
+  // Relationships
+  channel            Channel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author             User              @relation("UserMessages", fields: [authorId], references: [id])
+  repliedToMessage   Message?          @relation("MessageReplies", fields: [repliedToMessageId], references: [id])
+  replies            Message[]         @relation("MessageReplies")
+  reactions          MessageReaction[]
+  readReceipts       ReadReceipt[]
+  channelLastMessage Channel[]         @relation("ChannelLastMessage")
+  
+  @@index([channelId, sentAt])
+  @@index([authorId])
+  @@index([repliedToMessageId])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([emoji])
+}
+
+model ReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
 }
 
 // Staking Models

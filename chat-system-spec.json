@@ -1,0 +1,298 @@
+{
+    "project": "Next.js Real-Time Chat System (Discord/X/Messenger Clone)",
+    "goal": "Build a scalable, feature-rich chat system with DMs, group chats, media, reactions, read receipts, and real-time sync using WebSocket + MessagePack (not Socket.IO) on top of Next.js 14+ (App Router). Prioritize low latency, small payload size, and global scalability like Discord.",
+    "current_state": "Using Socket.IO for real-time messaging. Needs migration to raw WebSocket + MessagePack for performance, scalability, and production readiness.",
+    "requirements": {
+      "core_features": [
+        "Single-user Direct Messages (DMs)",
+        "Group Chats (up to 10k members)",
+        "Real-time message delivery via WebSocket (binary, not JSON)",
+        "Message reactions (emoji picker: 👍👎❤️🔥🎉 etc.)",
+        "Media uploads: images, GIFs (via Cloudinary or S3)",
+        "Message editing & deletion (with audit log)",
+        "Read receipts (seen by user timestamps)",
+        "Typing indicators (per channel)",
+        "Message threading/replies",
+        "User presence (online/offline/away)",
+        "Searchable message history (full-text search)",
+        "Notification system (push + in-app)",
+        "User blocking & mute functionality"
+      ],
+      "data_schema": {
+        "User": {
+          "fields": {
+            "id": "string (UUID)",
+            "username": "string (unique, lowercase, 3-32 chars)",
+            "email": "string (unique)",
+            "avatarUrl": "string (optional, CDN link)",
+            "status": "enum ('online', 'idle', 'dnd', 'offline')",
+            "lastSeen": "timestamp",
+            "createdAt": "timestamp",
+            "isVerified": "boolean",
+            "blockedUsers": ["string[] - User IDs"],
+            "mutedChannels": ["string[] - Channel IDs"]
+          }
+        },
+        "Channel": {
+          "fields": {
+            "id": "string (UUID)",
+            "name": "string (for groups, optional for DMs)",
+            "type": "enum ('dm', 'text-group')",
+            "createdBy": "string (User ID)",
+            "createdAt": "timestamp",
+            "isPrivate": "boolean",
+            "members": ["string[] - User IDs"],
+            "lastMessageId": "string (optional, ref to Message)",
+            "topic": "string (optional)"
+          },
+          "indexes": ["members", "type", "lastMessageId"]
+        },
+        "Message": {
+          "fields": {
+            "id": "string (UUID)",
+            "channelId": "string (ref to Channel)",
+            "authorId": "string (ref to User)",
+            "content": "string (max 2000 chars)",
+            "attachments": [
+              {
+                "url": "string (CDN URL)",
+                "type": "enum ('image', 'gif', 'video', 'file')",
+                "originalName": "string",
+                "size": "number (bytes)",
+                "thumbnailUrl": "string (optional, for images/gifs)"
+              }
+            ],
+            "repliedToMessageId": "string (optional, ref to Message)",
+            "editedAt": "timestamp (null if not edited)",
+            "deletedAt": "timestamp (null if not deleted)",
+            "sentAt": "timestamp",
+            "isSystem": "boolean (e.g., user joined/left)"
+          },
+          "indexes": ["channelId", "sentAt", "authorId", "repliedToMessageId"]
+        },
+        "Reaction": {
+          "fields": {
+            "id": "string (UUID)",
+            "messageId": "string (ref to Message)",
+            "userId": "string (ref to User)",
+            "emoji": "string (e.g., '👍', '😂', '🚀')",
+            "createdAt": "timestamp"
+          },
+          "indexes": ["messageId", "emoji", "userId"],
+          "constraints": "Unique combo: (messageId, userId, emoji)"
+        },
+        "ReadReceipt": {
+          "fields": {
+            "id": "string (UUID)",
+            "messageId": "string (ref to Message)",
+            "userId": "string (ref to User)",
+            "readAt": "timestamp"
+          },
+          "indexes": ["messageId", "userId"],
+          "constraints": "Unique combo: (messageId, userId)"
+        },
+        "TypingIndicator": {
+          "fields": {
+            "userId": "string",
+            "channelId": "string",
+            "isActive": "boolean",
+            "lastUpdated": "timestamp"
+          },
+          "indexes": ["channelId"],
+          "ttl": "10s auto-delete if no update"
+        }
+      },
+      "transport_protocol": {
+        "current": "Socket.IO",
+        "recommended": "Raw WebSocket + MessagePack (msgpack)",
+        "reason": "Socket.IO uses JSON over HTTP long-polling/WebSocket, adding bloat and overhead. Discord, Slack, and Messenger use binary protocols (Protobuf/MessagePack) for lower latency, smaller payloads, and better mobile efficiency. Raw WebSocket avoids library overhead and gives full control.",
+        "serialization": {
+          "format": "MessagePack (msgpack)",
+          "library": "msgpack-lite (client and server)",
+          "advantages": [
+            "30–50% smaller payloads than JSON",
+            "Faster parsing (~0.5ms vs ~2ms)",
+            "Binary-safe, efficient for media metadata",
+            "No human-readable overhead — ideal for real-time systems"
+          ],
+          "disadvantages": [
+            "Not human-readable (debug with dev tools or decoder)",
+            "Requires client-side decode library (6KB gzipped)"
+          ]
+        },
+        "connection_handling": {
+          "handshake": "JWT token passed as query param: ws://localhost:3000/api/ws/chat?token=...",
+          "auth_middleware": "Verify JWT on connection open — reject if invalid",
+          "keepalive": "No heartbeat needed — use app-level ping/pong if needed (Discord doesn’t use them)",
+          "fallback": "HTTP long-polling (optional) for corporate firewalls — send fallback endpoint in initial response"
+        },
+        "events": {
+          "client_to_server": [
+            "SEND_MESSAGE",
+            "EDIT_MESSAGE",
+            "DELETE_MESSAGE",
+            "ADD_REACTION",
+            "REMOVE_REACTION",
+            "START_TYPING",
+            "STOP_TYPING",
+            "FETCH_MESSAGES",
+            "JOIN_CHANNEL",
+            "LEAVE_CHANNEL",
+            "UPLOAD_MEDIA",
+            "MARK_AS_READ",
+            "PING"
+          ],
+          "server_to_client": [
+            "MESSAGE_RECEIVED",
+            "MESSAGE_EDITED",
+            "MESSAGE_DELETED",
+            "REACTION_ADDED",
+            "REACTION_REMOVED",
+            "TYPING_STARTED",
+            "TYPING_STOPPED",
+            "USER_JOINED",
+            "USER_LEFT",
+            "USER_STATUS_CHANGED",
+            "READ_RECEIPT_UPDATED",
+            "MEDIA_UPLOADED",
+            "MESSAGES_LOADED",
+            "CHANNEL_CREATED",
+            "NEW_DM_INVITE",
+            "PONG"
+          ],
+          "event_format": "Each event is a MessagePack-encoded array: [eventType, payload, timestamp?]",
+          "example": "[\"SEND_MESSAGE\", {\"channelId\":\"c123\",\"content\":\"hi\",\"attachments\":[]}, 1717000000000]"
+        }
+      },
+      "media_handling": {
+        "storage": "Cloudinary (recommended) OR AWS S3 + CloudFront",
+        "limits": {
+          "image": "5MB max",
+          "gif": "15MB max",
+          "video": "50MB max",
+          "file": "100MB max"
+        },
+        "processing": {
+          "images": "resize to 800px width, WebP format",
+          "gifs": "optimize with gifsicle, limit to 10s duration",
+          "thumbnails": "generate for all media (120x90 preview)"
+        },
+        "cdn_url_prefix": "https://your-cdn-domain.com/media/"
+      },
+      "backend": {
+        "framework": "Next.js 14 App Router",
+        "api_routes": [
+          "/api/chat/messages",
+          "/api/chat/channels",
+          "/api/chat/reactions",
+          "/api/chat/media/upload",
+          "/api/chat/users/search",
+          "/api/chat/read-receipts",
+          "/api/ws/chat" // ← WebSocket endpoint
+        ],
+        "database": "PostgreSQL (with Prisma ORM)",
+        "redis": "used for typing indicators, presence, read receipts, rate limiting, and pub/sub for multi-instance sync",
+        "auth": "NextAuth.js (Credentials + OAuth)",
+        "rate_limiting": "100 messages/user/minute per channel, 5 uploads/min",
+        "websocket_server": {
+          "library": "ws (npm install ws)",
+          "host": "0.0.0.0",
+          "port": "process.env.WS_PORT || 3001",
+          "max_connections": "10000 per instance",
+          "connection_pool": "Store active connections in Map<userId, WebSocket>",
+          "broadcast_strategy": "Use Redis PUB/SUB to propagate events across Next.js instances"
+        }
+      },
+      "frontend": {
+        "framework": "Next.js 14 (App Router, Server Components)",
+        "state_management": "Zustand (for global chat state) + React Query (for caching)",
+        "ui_components": [
+          "ChatSidebar (DMs + Groups)",
+          "ChannelHeader (with members, topic, settings)",
+          "MessageList (infinite scroll + thread replies)",
+          "MessageBubble (with avatar, timestamp, reactions, edit/delete menu)",
+          "EmojiPicker (custom, 50+ emojis)",
+          "MediaUploader (drag-drop, preview, progress bar)",
+          "TypingIndicatorBar",
+          "UserPresenceBadge (online dot)",
+          "SearchInput (messages, users)",
+          "NotificationBadge (unread count)"
+        ],
+        "optimizations": [
+          "Virtualized message list (react-window)",
+          "Lazy-load media thumbnails",
+          "Debounce typing indicators (300ms)",
+          "Optimistic UI updates (immediate local render)",
+          "Offline-first: queue messages when offline (IndexedDB)",
+          "Use native WebSocket API — NO Socket.IO client",
+          "Pre-connect WebSocket on app load (use useEffect in layout)",
+          "Compress outgoing data with msgpack.encode()",
+          "Decode incoming data with msgpack.decode()"
+        ],
+        "websocket_client": {
+          "library": "msgpack-lite",
+          "connection_logic": "Create singleton WebSocket on app init; reconnect on error with exponential backoff",
+          "reconnect": {
+            "max_attempts": 5,
+            "base_delay": 1000,
+            "max_delay": 10000
+          },
+          "send": "msgpack.encode([eventType, payload])",
+          "receive": "const [type, payload] = msgpack.decode(data); dispatch(type, payload)"
+        }
+      },
+      "scalability_notes": [
+        "Use Redis Pub/Sub to broadcast events across multiple Next.js instances (e.g., on Vercel edge or multiple servers)",
+        "Shard channels by region or load if >5k users per group (future)",
+        "Use SQS/Kafka for async media processing and notifications",
+        "Cache recent messages (last 100) in Redis per channel",
+        "Avoid N+1 queries: preload users + reactions with each message",
+        "Track active connections per user in Redis (set with TTL) for presence",
+        "Do NOT store WebSocket connections in memory across server restarts — always re-authenticate via JWT"
+      ],
+      "security": [
+        "Validate all inputs server-side",
+        "Sanitize HTML in messages (DOMPurify)",
+        "Block malicious file types (exe, js, bat)",
+        "Rate-limit uploads and connections",
+        "CSRF protection on API routes",
+        "JWT tokens for WebSocket auth (validate signature + expiry on connect)",
+        "Never trust client-sent timestamps — server-authoritative time only",
+        "Use HTTPS + WSS (secure WebSocket) in production"
+      ],
+      "future_extensions": [
+        "Voice messages (audio upload)",
+        "Screen sharing (WebRTC)",
+        "Bots / webhook integrations",
+        "Custom emoji packs",
+        "Themes (dark/light mode sync)",
+        "Message pinning",
+        "End-to-end encryption (E2EE) for DMs",
+        "Live reactions (animated emoji burst)"
+      ],
+      "discord_like_architecture_insights": {
+        "key_principles": [
+          "One persistent connection per user — never poll",
+          "Binary encoding (MessagePack/Protobuf) — never JSON for real-time events",
+          "Event-driven design — every action is an event with type and payload",
+          "Presence and typing are ephemeral — stored in Redis, not DB",
+          "Messages are immutable after send — edits/deletes are new events",
+          "Scalability comes from decoupling: WebSocket layer ≠ database layer",
+          "Global latency < 100ms — achieved via edge routing and caching"
+        ],
+        "what_to_copy": [
+          "Use Redis for real-time state (typing, presence, read receipts)",
+          "Design events as simple arrays: [type, payload, ts]",
+          "Separate media upload from chat protocol — use REST for large files",
+          "Don't send full user objects with every message — send userId, fetch profile lazily"
+        ],
+        "what_to_avoid": [
+          "Socket.IO’s room management — implement your own lightweight channel subscription",
+          "Sending full message history on connect — use pagination with FETCH_MESSAGES",
+          "Storing WebSocket connections in process.memory — they die on restart",
+          "Using string-based event names without validation — use enum-like integers if scaling beyond 1M users"
+        ]
+      }
+    },
+    "output_expectation": "Generate full codebase structure with: Prisma schema, WebSocket server (app/api/ws/chat/route.ts), client WebSocket hook (lib/hooks/useWebSocket.ts), MessagePack serialization utilities, Redis integration for presence/typing, UI components, and sample seed data. Prioritize performance, correctness, maintainability, and production readiness. Replace ALL Socket.IO references with raw WebSocket + MessagePack."
+  }

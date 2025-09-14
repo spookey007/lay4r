@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import SolanaStaking from "./components/SolanaStaking";
+import ChatWidget from "./components/ChatWidget";
 
 
 export default function Home() {
@@ -331,6 +332,9 @@ const fetchTokenData = async () => {
           </div>
         </div>
       )}
+
+      {/* Chat Widget */}
+      <ChatWidget />
     </div>
   );
 }

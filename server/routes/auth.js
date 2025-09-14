@@ -105,13 +105,15 @@ router.post('/login', async (req, res) => {
   // Check if user exists and get their role
   let user = await prisma.user.findUnique({
     where: { walletAddress }
-  });
+  }); 
 
   // If user doesn't exist, create them as a regular user (role 1)
+  let isNewUser = false;
   if (!user) {
     user = await prisma.user.create({
       data: { walletAddress, role: 1 }
     });
+    isNewUser = true;
   }
 
   const token = randomHex(32);
@@ -119,8 +121,20 @@ router.post('/login', async (req, res) => {
 
   await prisma.session.create({ data: { token, userId: user.id, expiresAt } });
 
+  // Send welcome message for new users
+  if (isNewUser) {
+    try {
+      const chatService = require('../services/chatService');
+      await chatService.sendWelcomeMessage(user.id);
+      console.log('🎉 Welcome message sent for new user:', user.id);
+    } catch (error) {
+      console.error('❌ Failed to send welcome message:', error);
+      // Don't fail the login if welcome message fails
+    }
+  }
+
   res.cookie('l4_session', token, {
-    httpOnly: true,
+    httpOnly: false, // Changed to false so WebSocket can access it
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
@@ -128,11 +142,19 @@ router.post('/login', async (req, res) => {
   });
 
   res.json({
+    success: true,
     user: {
       id: user.id,
       walletAddress: user.walletAddress,
+      username: user.username,
       role: user.role,
       isAdmin: user.role === 0,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      avatarBlob: user.avatarBlob,
+      bio: user.bio,
+      email: user.email,
+      emailVerified: user.emailVerifiedAt ? true : false
     },
   });
 });
@@ -140,7 +162,7 @@ router.post('/login', async (req, res) => {
 router.post('/logout', async (req, res) => {
   const token = req.cookies?.l4_session;
   if (token) await prisma.session.deleteMany({ where: { token } });
-  res.cookie('l4_session', '', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', expires: new Date(0) });
+  res.cookie('l4_session', '', { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', expires: new Date(0) });
   res.json({ ok: true });
 });
 
@@ -150,7 +172,7 @@ router.get('/me', async (req, res) => {
   const session = await prisma.session.findUnique({ where: { token }, include: { user: true } });
   if (!session || session.expiresAt < new Date()) return res.json({ user: null });
   const { user } = session;
-  console.log('User avatarBlob length:', user.avatarBlob ? user.avatarBlob.length : 'none');
+
   // Convert avatar blob to data URL if it exists
   let avatarData = null;
   // if (user.avatarBlob) {
@@ -159,6 +181,15 @@ router.get('/me', async (req, res) => {
   //   avatarData = `data:image/jpeg;base64,${base64String}`;
   // }
   
+  // Refresh the session cookie to ensure it's properly set
+  res.cookie('l4_session', token, {
+    httpOnly: false, // Changed to false so WebSocket can access it
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    expires: session.expiresAt,
+  });
+
   res.json({ 
     user: { 
       id: user.id, 

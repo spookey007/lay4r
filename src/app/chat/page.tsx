@@ -1,358 +1,498 @@
-"use client";
-import { useEffect, useState, useMemo } from "react";
+'use client';
 
-type Room = {
-  id: string;
-  name: string | null;
-  type: 'room' | 'dm';
-};
+import React, { useState, useEffect } from 'react';
+import { useChatStore } from '@/stores/chatStore';
+import { useWebSocket, useChatEvents, SERVER_EVENTS } from '@/contexts/WebSocketContext';
+import { useWallet } from '@solana/wallet-adapter-react';
+import ChatSidebar from '@/app/components/chat/ChatSidebar';
+import MessageList from '@/app/components/chat/MessageList';
+import MessageInput from '@/app/components/chat/MessageInput';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { getCurrentUser } from '@/lib/auth';
 
-type User = {
-  id: string;
-  walletAddress: string;
-  username: string | null;
-  displayName: string | null;
-  avatarUrl: string | null;
-};
+const queryClient = new QueryClient();
 
-// Default avatar placeholder
-const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230066ff'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+function ChatContent() {
+  const [isAuth, setIsAuth] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
+  const [replyToMessage, setReplyToMessage] = useState<any>(null);
+  const [switchingChat, setSwitchingChat] = useState(false);
+  
+  const { 
+    isConnected, 
+    setConnected, 
+    setError,
+    getCurrentChannel,
+    setCurrentChannel,
+    addTypingUser,
+    removeTypingUser,
+    setMessages,
+    currentUser,
+    setCurrentUser
+  } = useChatStore();
 
-export default function ChatPage() {
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [newRoom, setNewRoom] = useState("");
-  const [activeRoom, setActiveRoom] = useState<string | null>(null);
-  const [activeUser, setActiveUser] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [text, setText] = useState("");
-  const [activeTab, setActiveTab] = useState<'rooms' | 'people'>('rooms');
-  const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { on, off, connectIfAuthenticated } = useWebSocket();
 
-  // Filter rooms based on search and type
-  const filteredRooms = useMemo(() => {
-    return rooms.filter(room => room.type === 'room');
-  }, [rooms]);
-
-  const filteredUsers = useMemo(() => {
-    return users;
-  }, [users]);
-
+  // Check authentication on mount using centralized auth service
   useEffect(() => {
-    Promise.all([
-      import("@/lib/api").then(({ apiFetch }) =>
-        apiFetch("/chat/rooms").then((r) => r.json()).then((d) => d.rooms ?? [])
-      ),
-      import("@/lib/api").then(({ apiFetch }) =>
-        apiFetch("/chat/users").then((r) => r.json()).then((d) => d.users ?? [])
-      ),
-      import("@/lib/api").then(({ apiFetch }) =>
-        apiFetch("/auth/me").then((r) => r.json()).then((d) => d.user ?? null)
-      )
-    ]).then(([roomsData, usersData, userData]) => {
-      // Transform rooms data
-      const transformedRooms = roomsData.map((room: any) => ({
-        ...room,
-        type: 'room' as const
-      }));
-      
-      setRooms(transformedRooms);
-      setUsers(usersData);
-      setCurrentUser(userData);
-    }).catch(() => {});
-  }, []);
+    const initializeAuth = async () => {
+      try {
+        const { authService } = await import('@/lib/authService');
+        const user = await authService.initialize();
+        
+        if (user) {
 
+          setCurrentUser(user);
+          setIsAuth(true);
+
+        } else {
+
+          window.location.href = '/';
+        }
+      } catch (error) {
+
+        window.location.href = '/';
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    initializeAuth();
+  }, [setCurrentUser]);
+
+  // Handle WebSocket connection status
   useEffect(() => {
-    if (!activeRoom && !activeUser) return;
-    
-    const targetId = activeRoom || activeUser;
-    if (!targetId) return;
-    
-    import("@/lib/api").then(({ apiFetch }) =>
-      apiFetch(`/chat/rooms/${targetId}/messages`).then((r) => r.json()).then((d) => setMessages(d.messages ?? [])).catch(() => {})
-    );
-  }, [activeRoom, activeUser]);
+    const handleConnectionChange = (connected: boolean) => {
 
-  async function createRoom() {
-    if (!newRoom.trim()) return;
-    setLoading(true);
-    try {
-      const { apiFetch } = await import("@/lib/api");
-      const r = await apiFetch("/chat/rooms", { method: "POST", body: JSON.stringify({ name: newRoom }) });
-      const d = await r.json();
-      setRooms((prev) => [{ ...d.room, type: 'room' }, ...prev]);
-      setNewRoom("");
-    } catch (error) {
-      console.error("Failed to create room:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+      setConnected(connected);
+      
+      if (connected) {
 
-  async function sendMessage() {
-    if ((!activeRoom && !activeUser) || !text.trim() || loading) return;
+      } else {
+
+      }
+    };
+
+    on('connection', handleConnectionChange);
+
+    return () => {
+      off('connection', handleConnectionChange);
+    };
+  }, [on, off, setConnected]);
+
+  // Handle WebSocket errors
+  useEffect(() => {
+    const handleError = (error: any) => {
+      setError(error.message || 'Connection error');
+    };
+
+    on('error', handleError);
+
+    return () => {
+      off('error', handleError);
+    };
+  }, [on, off, setError]);
+
+  // Handle typing events
+  useEffect(() => {
+    const handleTypingStarted = (payload: any) => {
+
+      addTypingUser(payload.channelId, {
+        userId: payload.userId,
+        channelId: payload.channelId,
+        timestamp: Date.now()
+      });
+    };
+
+    const handleTypingStopped = (payload: any) => {
+
+      removeTypingUser(payload.channelId, payload.userId);
+    };
+
+    // Set up WebSocket event listeners
+
+    // Note: MESSAGE_RECEIVED is handled by MessageList component to avoid duplicates
+    on('TYPING_STARTED', handleTypingStarted);
+    on('TYPING_STOPPED', handleTypingStopped);
     
+
+
+    return () => {
+
+      // Note: MESSAGE_RECEIVED is handled by MessageList component to avoid duplicates
+      off('TYPING_STARTED', handleTypingStarted);
+      off('TYPING_STOPPED', handleTypingStopped);
+    };
+  }, [on, off, addTypingUser, removeTypingUser]);
+
+  // Note: Removed fallback polling to avoid interference with real-time WebSocket messages
+
+  const handleChannelSelect = async (channelId: string) => {
+
+    
+    // Show loader immediately
+    setSwitchingChat(true);
+    
+    setCurrentChannelId(channelId);
+
+    setCurrentChannel(channelId);
+
+    
+    // Verify the store was updated
+    const { currentChannelId: storeChannelId } = useChatStore.getState();
+
+    
+    setReplyToMessage(null);
+    
+    // Load messages for the selected channel
     try {
-      setLoading(true);
+      const { apiFetch } = await import('@/lib/api');
+      const response = await apiFetch(`/chat/channels/${channelId}/messages?limit=50`);
       
-      // For direct messages, we need to use the special dm- format
-      const targetRoomId = activeRoom || (activeUser ? `dm-${activeUser}` : null);
-      
-      if (!targetRoomId) {
-        throw new Error("No room or user selected");
+      if (!response.ok) {
+
+        setSwitchingChat(false);
+        return;
       }
       
-      const r = await fetch(`/api/chat/rooms/${targetRoomId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text })
-      });
+      const data = await response.json();
       
-      const d = await r.json();
-      setMessages((prev) => [...prev, d.message]);
-      setText("");
+      if (data.messages && Array.isArray(data.messages)) {
+
+        // Set messages in store (backend returns in correct chronological order)
+        setMessages(channelId, data.messages);
+      } else {
+
+      }
     } catch (error) {
-      console.error("Failed to send message:", error);
+
     } finally {
-      setLoading(false);
+      // Hide loader after a short delay to ensure smooth transition
+      setTimeout(() => setSwitchingChat(false), 300);
     }
+  };
+
+  const handleReplyToMessage = (messageId: string) => {
+    // For now, just set a mock reply message
+    setReplyToMessage({ id: messageId, content: 'Mock reply message' });
+  };
+
+  const handleClearReply = () => {
+    setReplyToMessage(null);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
-  function handleRoomSelect(roomId: string) {
-    setActiveRoom(roomId);
-    setActiveUser(null);
-  }
-
-  function handleUserSelect(userId: string) {
-    // For direct messages, we'll use a special room ID format
-    setActiveUser(userId);
-    setActiveRoom(null);
-  }
-
-  // Get user avatar or default
-  function getUserAvatar(user: User | null | undefined): string {
-    if (!user) return DEFAULT_AVATAR;
-    
-    // If user has an avatar URL, use it
-    if (user.avatarUrl) return user.avatarUrl;
-    
-    // Otherwise, return default avatar
-    return DEFAULT_AVATAR;
-  }
-
-  // Get user display name
-  function getUserDisplayName(user: User | null | undefined): string {
-    if (!user) return "Unknown User";
-    
-    return user.username || 
-           user.displayName || 
-           (user.walletAddress ? 
-             `${user.walletAddress.substring(0, 4)}...${user.walletAddress.substring(user.walletAddress.length - 4)}` : 
-             "Unknown User");
+  if (!isAuth || !currentUser) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Please sign in to use chat
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            You need to be authenticated to access the chat system.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-4 min-h-screen p-4" style={{ fontFamily: "'LisaStyle', monospace" }}>
-      <div className="lisa-window flex-1">
-        <div className="lisa-titlebar"><div className="lisa-title">Chat</div></div>
-        <div className="lisa-content grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-120px)]">
-          {/* Sidebar - Rooms and People */}
-          <div className="flex flex-col gap-4 lg:border-r lg:border-gray-300 lg:pr-4">
-            {/* Tabs for Rooms and People */}
-            <div className="flex border-b border-gray-300">
-              <button 
-                className={`flex-1 py-2 text-center ${activeTab === 'rooms' ? 'border-b-2 border-blue-500 font-bold' : ''}`}
-                onClick={() => setActiveTab('rooms')}
-              >
-                Rooms
-              </button>
-              <button 
-                className={`flex-1 py-2 text-center ${activeTab === 'people' ? 'border-b-2 border-blue-500 font-bold' : ''}`}
-                onClick={() => setActiveTab('people')}
-              >
-                People
-              </button>
-            </div>
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+      {/* Sidebar */}
+      <div className="w-80 flex-shrink-0">
+        <ChatSidebar 
+          onChannelSelect={handleChannelSelect}
+          currentChannelId={currentChannelId}
+        />
+      </div>
+
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col bg-white rounded-l-2xl shadow-xl border-l border-gray-200 overflow-hidden">
+        {currentChannelId && currentUser ? (
+          <>
+            {/* Channel header */}
+            <ChannelHeader channelId={currentChannelId} />
             
-            {/* Create room form */}
-            {activeTab === 'rooms' && (
-              <div className="flex gap-2">
-                <input 
-                  value={newRoom} 
-                  onChange={(e) => setNewRoom(e.target.value)} 
-                  placeholder="New room name" 
-                  className="border-2 border-[#808080] p-2 flex-1 rounded"
-                  disabled={loading}
-                  onKeyPress={(e) => e.key === 'Enter' && createRoom()}
-                />
-                <button 
-                  onClick={createRoom} 
-                  className="lisa-button px-4 py-2"
-                  disabled={loading || !newRoom.trim()}
+            {/* Debug panel - remove in production */}
+            <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span>Debug: WebSocket {isConnected ? '✅ Connected' : '❌ Disconnected'}</span>
+                <button
+                  onClick={async () => {
+
+                    try {
+                      const { apiFetch } = await import('@/lib/api');
+                      const response = await apiFetch(`/chat/channels/${currentChannelId}/messages?limit=5`);
+                      const data = await response.json();
+
+                    } catch (error) {
+
+                    }
+                  }}
+                  className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
                 >
-                  Create
+                  Check Messages
                 </button>
               </div>
+            </div>
+
+            {/* Messages */}
+            <MessageList 
+              channelId={currentChannelId}
+              switchingChat={switchingChat}
+              setSwitchingChat={setSwitchingChat}
+            />
+
+            {/* Message input - only render when currentUser is available */}
+            {currentUser && (
+              <MessageInput
+                channelId={currentChannelId}
+                replyToMessage={replyToMessage}
+                onClearReply={handleClearReply}
+              />
             )}
-            
-            {/* Rooms or People list */}
-            <div className="flex flex-col gap-2 overflow-y-auto flex-1">
-              {activeTab === 'rooms' ? (
-                filteredRooms.length > 0 ? (
-                  filteredRooms.map((r) => (
-                    <button 
-                      key={r.id} 
-                      onClick={() => handleRoomSelect(r.id)} 
-                      className={`lisa-button text-left p-3 rounded-lg transition-all duration-200 ${
-                        activeRoom === r.id ? 'lisa-button-primary bg-blue-100 border-l-4 border-l-blue-500' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="bg-gray-200 border-2 border-dashed rounded-xl w-10 h-10 flex items-center justify-center">
-                          <span className="text-lg">💬</span>
-                        </div>
-                        <div className="text-left">
-                          <div className="font-medium">{r.name ?? r.id}</div>
-                          <div className="text-xs text-gray-500">Room</div>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-center text-gray-500 py-8">No rooms available</div>
-                )
-              ) : (
-                filteredUsers.length > 0 ? (
-                  filteredUsers.map((u) => (
-                    <button 
-                      key={u.id} 
-                      onClick={() => handleUserSelect(u.id)} 
-                      className={`lisa-button text-left p-3 rounded-lg transition-all duration-200 ${
-                        activeUser === u.id ? 'lisa-button-primary bg-blue-100 border-l-4 border-l-blue-500' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <img 
-                          src={getUserAvatar(u)} 
-                          alt={getUserDisplayName(u)} 
-                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = DEFAULT_AVATAR;
-                          }}
-                        />
-                        <div className="text-left">
-                          <div className="font-medium">{getUserDisplayName(u)}</div>
-                          <div className="text-xs text-gray-500">User</div>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-center text-gray-500 py-8">No users available</div>
-                )
-              )}
+          </>
+        ) : currentChannelId && !currentUser ? (
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+            <div className="text-center max-w-md mx-auto p-8">
+              <div className="w-24 h-24 bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                User Session Not Found
+              </h1>
+              <p className="text-gray-600 mb-6">
+                Your session couldn&apos;t be loaded. Please try refreshing the page or reconnecting your wallet.
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  Refresh Page
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const { apiFetch } = await import('@/lib/api');
+                      const response = await apiFetch('/auth/me');
+                      const data = await response.json();
+                      if (data.user) {
+                        setCurrentUser(data.user);
+                        setIsAuth(true);
+                      }
+                    } catch (error) {
+
+                    }
+                  }}
+                  className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  Retry Loading Session
+                </button>
+              </div>
             </div>
           </div>
-          
-          {/* Main Chat Area */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            {/* Chat Header */}
-            <div className="border-b border-gray-300 pb-2">
-              <h2 className="text-xl font-bold">
-                {activeRoom 
-                  ? (rooms.find(r => r.id === activeRoom)?.name ?? 'Room') 
-                  : activeUser 
-                    ? (users.find(u => u.id === activeUser)?.username ?? 'User') 
-                    : 'Select a chat'}
-              </h2>
-            </div>
-            
-            {/* Messages Container */}
-            <div className="border-2 border-[#808080] p-4 rounded flex-1 overflow-auto flex flex-col">
-              {messages.length > 0 ? (
-                messages.map((m) => {
-                  // Find sender in users or current user
-                  const sender = users.find(u => u.id === m.senderId) || 
-                                (m.senderId === currentUser?.id ? currentUser : null);
-                  
-                  const isCurrentUser = m.senderId === currentUser?.id;
-                  
-                  return (
-                    <div 
-                      key={m.id} 
-                      className={`mb-4 p-3 rounded-lg max-w-[80%] ${
-                        isCurrentUser 
-                          ? 'self-end bg-blue-100 ml-auto' 
-                          : 'self-start bg-gray-100 mr-auto'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        {!isCurrentUser && (
-                          <img 
-                            src={getUserAvatar(sender)} 
-                            alt={getUserDisplayName(sender)} 
-                            className="w-6 h-6 rounded-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = DEFAULT_AVATAR;
-                            }}
-                          />
-                        )}
-                        <div className={`text-xs font-medium ${
-                          isCurrentUser ? 'text-blue-800' : 'text-[#333]'
-                        }`}>
-                          {isCurrentUser ? 'You' : getUserDisplayName(sender)}
-                        </div>
-                        <div className="text-xs text-[#888]">
-                          {m.createdAt && new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                      <div className={`${isCurrentUser ? 'text-blue-900' : 'text-gray-800'}`}>
-                        {m.content}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500">
-                  {activeRoom || activeUser ? "No messages yet" : "Select a room or user to start chatting"}
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+            <div className="text-center max-w-md mx-auto p-8">
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to Layer4 Chat! 💬</h3>
+              <p className="text-gray-600 mb-6 leading-relaxed">
+                Select a channel or start a conversation with someone to begin chatting. Connect with the community and share your thoughts!
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+                  <div className="text-2xl mb-2">👥</div>
+                  <p className="text-sm font-medium text-gray-700">Find People</p>
+                  <p className="text-xs text-gray-500">Search for users to chat with</p>
                 </div>
-              )}
-              <div ref={(el) => {
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth' });
-                }
-              }} />
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+                  <div className="text-2xl mb-2">🏠</div>
+                  <p className="text-sm font-medium text-gray-700">Join Channels</p>
+                  <p className="text-xs text-gray-500">Participate in group discussions</p>
+                </div>
+              </div>
             </div>
-            
-            {/* Message Input */}
-            <div className="flex gap-2">
-              <input 
-                value={text} 
-                onChange={(e) => setText(e.target.value)} 
-                className="border-2 border-[#808080] p-2 flex-1 rounded" 
-                placeholder="Type a message..." 
-                disabled={loading || (!activeRoom && !activeUser)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
+          </div>
+        )}
+
+        {/* Connection status */}
+        <div className="absolute top-6 right-6 space-y-2">
+          <div className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium shadow-lg border ${
+            isConnected 
+              ? 'bg-green-50 text-green-800 border-green-200' 
+              : 'bg-red-50 text-red-800 border-red-200'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+            }`}></div>
+            <span>{isConnected ? '🟢 Connected' : '🔴 Disconnected'}</span>
+          </div>
+          {/* Debug info */}
+          {currentUser && (
+            <div className="bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs">
+              User: {currentUser.username || currentUser.walletAddress?.slice(0, 8)}
+            </div>
+          )}
+          {/* Debug buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                const { debugAuth, debugWebSocket } = await import('../../lib/debug-auth');
+                const authData = await debugAuth();
+                if (authData?.user) {
+                  const { getSessionToken } = await import('../../lib/auth');
+                  const token = getSessionToken();
+                  if (token) {
+                    debugWebSocket(token);
                   }
-                }}
-              />
-              <button 
-                onClick={sendMessage} 
-                className="lisa-button lisa-button-primary px-6 py-2 rounded"
-                disabled={loading || (!activeRoom && !activeUser) || !text.trim()}
-              >
-                Send
-              </button>
-            </div>
+                } else {
+
+                }
+              }}
+              className="bg-purple-500 text-white px-3 py-1 rounded text-xs hover:bg-purple-600"
+            >
+              🔧 Debug
+            </button>
+            <button
+              onClick={async () => {
+                const { createTestSession } = await import('../../lib/debug-auth');
+                const sessionData = await createTestSession();
+                if (sessionData) {
+
+                  connectIfAuthenticated();
+                  // Refresh the page to apply the new session
+                  setTimeout(() => window.location.reload(), 1000);
+                }
+              }}
+              className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600"
+            >
+              🧪 Test Login
+            </button>
+            <button
+              onClick={async () => {
+                const { quickWalletConnect } = await import('../../lib/debug-auth');
+                const loginData = await quickWalletConnect();
+                if (loginData) {
+
+                  connectIfAuthenticated();
+                  // Refresh the page to apply the new session
+                  setTimeout(() => window.location.reload(), 1000);
+                }
+              }}
+              className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600"
+            >
+              👛 Connect Wallet
+            </button>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function ChannelHeader({ channelId }: { channelId: string }) {
+  const { getCurrentChannel } = useChatStore();
+  const channel = getCurrentChannel();
+
+  if (!channel) return null;
+
+  const getChannelName = () => {
+    if (channel.type === 'dm') {
+      // For DM, find the other user (not the current user)
+      // We'll use a simple approach - get the first member that's not 'system' 
+      // In production, you'd get the current user ID from auth context
+      const currentUserId = 'system'; // This should come from auth context
+      const otherMember = channel.members.find(m => m.userId !== currentUserId);
+      
+      if (otherMember?.user) {
+        return otherMember.user.displayName || otherMember.user.username || `User ${otherMember.user.id.slice(0, 8)}`;
+      }
+      
+      // Fallback: if we can't find the other member, show the first member
+      const firstMember = channel.members[0];
+      if (firstMember?.user) {
+        return firstMember.user.displayName || firstMember.user.username || `User ${firstMember.user.id.slice(0, 8)}`;
+      }
+      
+      return 'Direct Message';
+    }
+    return channel.name || 'Unnamed Channel';
+  };
+
+  const getChannelDescription = () => {
+    if (channel.type === 'dm') {
+      return 'Direct message';
+    }
+    return channel.topic || `${channel._count.members} members`;
+  };
+
+  return (
+    <div className="border-b border-gray-100 bg-gradient-to-r from-white to-blue-50 px-8 py-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+              {channel.type === 'dm' ? getChannelName().charAt(0).toUpperCase() : '#'}
+            </div>
+            {channel.type === 'dm' && (
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
+            )}
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">
+              {getChannelName()}
+            </h1>
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+              {getChannelDescription()}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          {/* Channel actions */}
+          <button className="p-3 text-gray-500 hover:text-blue-600 rounded-xl hover:bg-blue-50 transition-all duration-200 hover:scale-105">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          <button className="p-3 text-gray-500 hover:text-blue-600 rounded-xl hover:bg-blue-50 transition-all duration-200 hover:scale-105">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+          <button className="p-3 text-gray-500 hover:text-red-600 rounded-xl hover:bg-red-50 transition-all duration-200 hover:scale-105">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ChatContent />
+    </QueryClientProvider>
   );
 }

@@ -21,13 +21,13 @@ export default function Header() {
     if (connected && publicKey) {
       login();
     } else {
-      import("@/lib/api")
-        .then(({ apiFetch }) =>
-          apiFetch("/auth/me")
-            .then((r) => r.json())
-            .then((d) => {
-              console.log("Header user data:", d.user);
-              setUser(d.user ?? null);
+      // Use auth service instead of direct API call
+      import("@/lib/authService")
+        .then(({ authService }) =>
+          authService.fetchUser()
+            .then((user) => {
+              console.log("Header user data:", user);
+              setUser(user);
             })
             .catch(() => {})
         );
@@ -57,11 +57,11 @@ export default function Header() {
     const { apiFetch } = await import("@/lib/api");
 
     try {
-      const meRes = await apiFetch("/auth/me");
-      const meData = await meRes.json();
-      console.log("Login meData:", meData);
-      if (meData.user && meData.user.walletAddress === walletAddress) {
-        setUser(meData.user);
+      const { authService } = await import("@/lib/authService");
+      const user = await authService.fetchUser();
+      console.log("Login user data:", user);
+      if (user && user.walletAddress === walletAddress) {
+        setUser(user);
         return;
       }
     } catch (error) {
@@ -92,6 +92,11 @@ export default function Header() {
   async function logout() {
     const { apiFetch } = await import("@/lib/api");
     await apiFetch("/auth/logout", { method: "POST" });
+    
+    // Clear auth service cache
+    const { authService } = await import("@/lib/authService");
+    authService.clearUser();
+    
     setUser(null);
     setShowProfileDropdown(false);
   }

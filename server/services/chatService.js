@@ -1,266 +1,169 @@
 const { prisma } = require('../lib/prisma');
 
 class ChatService {
-  // Get all rooms
-  async getAllRooms() {
-    return await prisma.room.findMany({
-      orderBy: { updatedAt: 'desc' }
-    });
-  }
-
-  // Create a new room
-  async createRoom(name) {
-    // Validate input
-    if (!name || typeof name !== 'string') {
-      throw new Error('Room name is required and must be a string');
-    }
-    
-    if (name.length > 50) {
-      throw new Error('Room name too long. Maximum 50 characters allowed.');
-    }
-    
-    return await prisma.room.create({ data: { name } });
-  }
-
-  // Get messages for a specific room
-  async getRoomMessages(roomId) {
-    // Special handling for l4-community room - now return actual messages
-    if (roomId === 'l4-community') {
-      // Ensure the L4 Community room exists in the database
-      let room = await prisma.room.findUnique({
-        where: { id: 'l4-community' }
+  // Get or create system user for automated messages
+  async getOrCreateSystemUser() {
+    try {
+      let systemUser = await prisma.user.findFirst({
+        where: {
+          id: 'system'
+        }
       });
-      
-      if (!room) {
-        room = await prisma.room.create({
+
+      if (!systemUser) {
+        systemUser = await prisma.user.create({
           data: {
-            id: 'l4-community',
-            name: 'L4 Community',
-            createdAt: new Date(),
-            updatedAt: new Date()
+            id: 'system',
+            walletAddress: 'system',
+            username: 'Layer4Bot',
+            displayName: 'Layer4 Bot',
+            bio: 'Automated system messages for Layer4 Community',
+            role: 0 // Admin role
           }
         });
+        console.log('✅ Created system user for automated messages');
       }
-      
-      const messages = await prisma.message.findMany({
-        where: { roomId: 'l4-community' },
+
+      return systemUser;
+    } catch (error) {
+      console.error('❌ Error getting/creating system user:', error);
+      throw error;
+    }
+  }
+
+  // Get or create the L4 Community Group channel
+  async getOrCreateL4CommunityChannel() {
+    try {
+      // Try to find existing L4 Community Group
+      let channel = await prisma.channel.findFirst({
+        where: {
+          name: 'L4 Community Group',
+          type: 'text-group'
+        }
+      });
+
+      if (!channel) {
+        // Create the L4 Community Group channel
+        channel = await prisma.channel.create({
+          data: {
+            name: 'L4 Community Group',
+            type: 'text-group',
+            topic: 'Welcome to the Layer4 Community! Share your thoughts, ask questions, and connect with other L4 holders.',
+            createdBy: 'system',
+            isPrivate: false
+          }
+        });
+        console.log('✅ Created L4 Community Group channel:', channel.id);
+      }
+
+      return channel;
+    } catch (error) {
+      console.error('❌ Error getting/creating L4 Community Group:', error);
+      throw error;
+    }
+  }
+
+  // Send welcome message to a user
+  async sendWelcomeMessage(userId) {
+    try {
+      // Ensure system user exists
+      await this.getOrCreateSystemUser();
+
+      // Check if user already received welcome message
+      const existingWelcome = await prisma.message.findFirst({
+        where: {
+          authorId: 'system',
+          content: {
+            contains: 'Welcome to the Layer4 Community!'
+          }
+        },
         include: {
-          sender: {
+          reactions: {
+            where: {
+              userId: userId
+            }
+          }
+        }
+      });
+
+      if (existingWelcome && existingWelcome.reactions.length > 0) {
+        console.log('👋 User already received welcome message:', userId);
+        return;
+      }
+
+      // Get or create L4 Community Group channel
+      const channel = await this.getOrCreateL4CommunityChannel();
+
+      // Add user to the channel if not already a member
+      await prisma.channelMember.upsert({
+        where: {
+          channelId_userId: {
+            channelId: channel.id,
+            userId: userId
+          }
+        },
+        create: {
+          channelId: channel.id,
+          userId: userId
+        },
+        update: {}
+      });
+
+      // Create welcome message
+      const welcomeMessage = await prisma.message.create({
+        data: {
+          channelId: channel.id,
+          authorId: 'system',
+          content: `🎉 Welcome to the Layer4 Community! 
+
+You've successfully joined the L4 Community Group. This is where L4 token holders come together to:
+• Share market insights and analysis
+• Discuss project updates and developments  
+• Connect with fellow community members
+• Ask questions and get support
+
+We're excited to have you as part of the Layer4 ecosystem! 🚀
+
+Feel free to introduce yourself and start engaging with the community.`,
+          attachments: null,
+          repliedToMessageId: null
+        },
+        include: {
+          author: {
             select: {
               id: true,
               username: true,
               displayName: true,
-              walletAddress: true,
-              avatarUrl: true,
-              avatarBlob: true
-            }
-          }
-        },
-        orderBy: { createdAt: 'asc' },
-        take: 50
-      });
-      return messages;
-    }
-    
-    return await prisma.message.findMany({
-      where: { roomId },
-      include: { sender: true },
-      orderBy: { createdAt: 'asc' }
-    });
-  }
-
-  // Get or create a direct message conversation between two users
-  async getOrCreateDMConversation(user1Id, user2Id) {
-    // Try to find existing conversation
-    let conversation = await prisma.conversation.findFirst({
-      where: {
-        type: 'dm',
-        participants: {
-          every: {
-            userId: { in: [user1Id, user2Id] }
-          }
-        }
-      },
-      include: {
-        messages: {
-          orderBy: { createdAt: 'asc' },
-          include: {
-            sender: true
-          }
-        }
-      }
-    });
-    
-    // If no conversation exists, create one
-    if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: {
-          type: 'dm',
-          participants: {
-            create: [
-              { userId: user1Id },
-              { userId: user2Id }
-            ]
-          }
-        },
-        include: {
-          messages: {
-            orderBy: { createdAt: 'asc' },
-            include: {
-              sender: true
+              avatarUrl: true
             }
           }
         }
       });
+
+      console.log('🎉 Welcome message sent to user:', userId, 'in channel:', channel.id);
+      return welcomeMessage;
+
+    } catch (error) {
+      console.error('❌ Error sending welcome message:', error);
+      throw error;
     }
-    
-    return conversation;
   }
 
-  // Send a message to a room or conversation
-  async sendMessage(roomId, content, senderId) {
-    // Validate input
-    if (!content || typeof content !== 'string') {
-      throw new Error('Message content is required and must be a string');
-    }
-    
-    if (content.length > 1000) {
-      throw new Error('Message content too long. Maximum 1000 characters allowed.');
-    }
-    
-    // Special handling for l4-community room - now allow messages
-    if (roomId === 'l4-community') {
-      // Ensure the L4 Community room exists in the database
-      let room = await prisma.room.findUnique({
-        where: { id: 'l4-community' }
-      });
-      
-      if (!room) {
-        room = await prisma.room.create({
-          data: {
-            id: 'l4-community',
-            name: 'L4 Community',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        });
-      }
-      
-      const message = await prisma.message.create({
+  // Create a reaction to mark that user received the welcome message
+  async markWelcomeMessageReceived(userId, messageId) {
+    try {
+      await prisma.messageReaction.create({
         data: {
-          content: content,
-          roomId: roomId,
-          senderId: senderId
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              walletAddress: true,
-              avatarUrl: true,
-              avatarBlob: true
-            }
-          }
+          messageId: messageId,
+          userId: userId,
+          emoji: '👋'
         }
       });
-      return message;
+      console.log('✅ Marked welcome message as received for user:', userId);
+    } catch (error) {
+      console.error('❌ Error marking welcome message received:', error);
+      throw error;
     }
-    
-    // Check if it's a conversation (DM) or room
-    const isConversation = await prisma.conversation.findUnique({
-      where: { id: roomId }
-    });
-    
-    if (isConversation) {
-      // Handle conversation message
-      const message = await prisma.message.create({
-        data: { 
-          content, 
-          conversationId: roomId, 
-          senderId
-        }
-      });
-      
-      await prisma.conversation.update({ 
-        where: { id: roomId }, 
-        data: { updatedAt: new Date() } 
-      });
-      
-      return message;
-    } else {
-      // Handle room message (legacy support)
-      const roomExists = await prisma.room.findUnique({
-        where: { id: roomId }
-      });
-      
-      if (!roomExists) {
-        throw new Error('Room not found');
-      }
-      
-      const message = await prisma.message.create({
-        data: { 
-          content, 
-          roomId, 
-          senderId
-        }
-      });
-      
-      await prisma.room.update({ 
-        where: { id: roomId }, 
-        data: { updatedAt: new Date() } 
-      });
-      
-      return message;
-    }
-  }
-
-  // Add or remove reaction to a message
-  async toggleMessageReaction(messageId, userId, emoji) {
-    // Validate input
-    if (!emoji || typeof emoji !== 'string') {
-      throw new Error('Emoji is required and must be a string');
-    }
-    
-    if (emoji.length > 10) {
-      throw new Error('Invalid emoji');
-    }
-    
-    // Check if reaction already exists
-    const existingReaction = await prisma.messageReaction.findFirst({
-      where: {
-        messageId,
-        userId,
-        emoji
-      }
-    });
-    
-    if (existingReaction) {
-      // Remove reaction (toggle off)
-      await prisma.messageReaction.delete({
-        where: { id: existingReaction.id }
-      });
-      return { removed: true, emoji, userId };
-    } else {
-      // Add new reaction
-      const reaction = await prisma.messageReaction.create({
-        data: {
-          messageId,
-          userId,
-          emoji
-        }
-      });
-      return reaction;
-    }
-  }
-
-  // Get message by ID
-  async getMessageById(messageId) {
-    return await prisma.message.findUnique({
-      where: { id: messageId },
-      include: { sender: true }
-    });
   }
 }
 
