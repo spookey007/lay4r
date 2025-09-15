@@ -47,9 +47,14 @@ JWT_SECRET=your-super-secret-jwt-key
 - **Solution**: Ensure `DATABASE_URL` is correctly set
 - **Check**: Run `npx prisma db push` in production
 
-### 4. Build Issues
-- **Issue**: PostCSS or build errors
-- **Solution**: Ensure all dependencies are installed
+### 4. PostCSS Build Issues
+- **Issue**: "Cannot find module 'autoprefixer'" or PostCSS errors
+- **Solution**: Ensure PostCSS dependencies are in `dependencies` not `devDependencies`
+- **Check**: `autoprefixer`, `postcss`, `tailwindcss`, and `@tailwindcss/postcss` must be in production dependencies
+
+### 5. Build Issues
+- **Issue**: Missing dependencies in production
+- **Solution**: Ensure all build dependencies are installed
 - **Check**: Run `npm ci` instead of `npm install` in production
 
 ## Deployment Steps

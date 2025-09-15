@@ -70,7 +70,10 @@
     "tweetnacl": "^1.0.3",
     "uuid": "^9.0.1",
     "ws": "^8.18.3",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -80,13 +83,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^9.0.7",
-    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "nodemon": "^3.1.10",
-    "postcss": "^8.5.6",
     "prisma": "^6.15.0",
-    "tailwindcss": "^4.1.13",
     "typescript": "5.9.2"
   },
   "prisma": {
