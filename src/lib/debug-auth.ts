@@ -55,7 +55,7 @@ export const createTestSession = async () => {
 export const debugWebSocket = (token: string) => {
   console.log('🔧 Manual WebSocket test');
   
-  const wsUrl = `ws://localhost:3001?token=${encodeURIComponent(token)}`;
+  const wsUrl = `${process.env.NEXT_PUBLIC_SOCKET_URL || 'ws://localhost:3001'}?token=${encodeURIComponent(token)}`;
   console.log('🌐 Testing URL:', wsUrl);
   
   const ws = new WebSocket(wsUrl);

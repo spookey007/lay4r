@@ -42,21 +42,13 @@ export const config = {
 
 // Helper function to get API URL
 export const getApiUrl = (endpoint: string = '') => {
-  // In production, use relative URLs to hit Next.js API routes
-  if (config.isProduction) {
-    return `/api${endpoint}`;
-  }
-  // In development, use the backend server
+  // Always use the configured API URL
   return `${config.api.baseUrl}${endpoint}`;
 };
 
 // Helper function to get Socket URL
 export const getSocketUrl = () => {
-  // In production, use the same domain as the frontend
-  if (config.isProduction) {
-    return window.location.origin;
-  }
-  // In development, use the Express server
+  // Always use the configured socket URL
   return config.api.socketUrl;
 };
 
