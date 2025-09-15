@@ -52,7 +52,17 @@ JWT_SECRET=your-super-secret-jwt-key
 - **Solution**: Ensure PostCSS dependencies are in `dependencies` not `devDependencies`
 - **Check**: `autoprefixer`, `postcss`, `tailwindcss`, and `@tailwindcss/postcss` must be in production dependencies
 
-### 5. Build Issues
+### 5. ESLint Build Issues
+- **Issue**: "ESLint must be installed in order to run during builds"
+- **Solution**: Move `eslint` and `eslint-config-next` to `dependencies`
+- **Check**: ESLint is required for Next.js production builds
+
+### 6. TypeScript Type Issues
+- **Issue**: "Could not find a declaration file for module 'nodemailer'"
+- **Solution**: Move `@types/nodemailer` to `dependencies`
+- **Check**: Type definitions must be available during production builds
+
+### 7. Build Issues
 - **Issue**: Missing dependencies in production
 - **Solution**: Ensure all build dependencies are installed
 - **Check**: Run `npm ci` instead of `npm install` in production
