@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const { WebSocketServer } = require('ws');
 const { createServer } = require('http');
 const msgpack = require('msgpack-lite');
+const next = require('next');
 // const jwt = require('jsonwebtoken'); // Not needed for session-based auth
 const { prisma } = require('./lib/prisma');
 
@@ -16,6 +17,11 @@ const chatRoutes = require('./routes/chat');
 const stakingRoutes = require('./routes/staking');
 const postsRoutes = require('./routes/posts');
 const dextoolsRoutes = require('./routes/dextools');
+
+// Next.js setup
+const dev = process.env.NODE_ENV !== 'production';
+const nextApp = next({ dev });
+const handle = nextApp.getRequestHandler();
 
 // Simple in-memory storage for development (replace with Redis in production)
 const memoryStore = {
@@ -127,35 +133,42 @@ async function updateUserPresence(userId, status) {
   }
 }
 
-// Express app setup
-const app = express();
+// Initialize Next.js and start server
+nextApp.prepare().then(() => {
+  // Express app setup
+  const app = express();
 
-// Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cookieParser());
+  // Middleware
+  app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+  }));
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(cookieParser());
 
-// Serve static files
-app.use('/uploads', express.static('public/uploads'));
-app.use('/avatars', express.static('public/avatars'));
+  // Serve static files
+  app.use('/uploads', express.static('public/uploads'));
+  app.use('/avatars', express.static('public/avatars'));
 
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/staking', stakingRoutes);
-app.use('/api/posts', postsRoutes);
-app.use('/api/dextools', dextoolsRoutes);
+  // API routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/chat', chatRoutes);
+  app.use('/api/staking', stakingRoutes);
+  app.use('/api/posts', postsRoutes);
+  app.use('/api/dextools', dextoolsRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+  // Health check endpoint
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
 
-// WebSocket event handlers
+  // All other requests handled by Next.js
+  app.use((req, res) => {
+    return handle(req, res);
+  });
+
+  // WebSocket event handlers
 async function handleSendMessage(userId, payload) {
   try {
     const { channelId, content, attachments = [], repliedToMessageId } = payload;
@@ -423,11 +436,11 @@ async function handleMarkAsRead(userId, payload) {
   }
 }
 
-// WebSocket server setup
-const server = createServer(app);
-const wss = new WebSocketServer({ server });
+  // WebSocket server setup
+  const server = createServer(app);
+  const wss = new WebSocketServer({ server });
 
-wss.on('connection', async (ws, req) => {
+  wss.on('connection', async (ws, req) => {
   try {
     console.log('🔌 [SERVER] New WebSocket connection attempt:', {
       url: req.url,
@@ -558,25 +571,26 @@ wss.on('connection', async (ws, req) => {
       updateUserPresence(userId, 'offline');
     });
 
-  } catch (error) {
-    console.error('Connection error:', error);
-    ws.close(1008, 'Authentication failed');
-  }
-});
-
-const port = process.env.EXPRESS_PORT || 3001;
-server.listen(port, () => {
-  console.log('🚀 [SERVER] Express server started:', {
-    port,
-    apiUrl: `http://localhost:${port}/api`,
-    websocketUrl: `ws://localhost:${port}`,
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    } catch (error) {
+      console.error('Connection error:', error);
+      ws.close(1008, 'Authentication failed');
+    }
   });
-});
 
-process.on('SIGINT', async () => {
-  console.log('Shutting down WebSocket server...');
-  await prisma.$disconnect();
-  process.exit(0);
+  const port = process.env.EXPRESS_PORT || 3001;
+  server.listen(port, () => {
+    console.log('🚀 [SERVER] Express server started:', {
+      port,
+      apiUrl: `http://localhost:${port}/api`,
+      websocketUrl: `ws://localhost:${port}`,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  process.on('SIGINT', async () => {
+    console.log('Shutting down WebSocket server...');
+    await prisma.$disconnect();
+    process.exit(0);
+  });
 }); 

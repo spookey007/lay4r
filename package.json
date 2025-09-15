@@ -10,7 +10,7 @@
     "build:turbo": "prisma generate && next build --turbopack",
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",
-    "start": "next start",
+    "start": "node server/index.js",
     "start:prod": "node .next/standalone/server.js",
     "lint": "eslint",
     "set-admin": "node server/scripts/set-first-admin.js",
