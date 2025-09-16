@@ -88,13 +88,14 @@ class AuthService {
   async fetchUser(forceRefresh = false): Promise<User | null> {
     // Return cached data if valid and not forcing refresh
     if (!forceRefresh && this.isCacheValid() && this.state.user) {
-      console.log('📋 Using cached user data');
+      // console.log('📋 Using cached user data');
       return this.state.user;
     }
 
     // Prevent multiple simultaneous requests
     if (this.state.isLoading) {
-      console.log('⏳ Auth request already in progress, waiting...');
+
+      
       return new Promise((resolve) => {
         const unsubscribe = this.subscribe((state) => {
           if (!state.isLoading) {
@@ -108,13 +109,13 @@ class AuthService {
     this.setLoading(true);
 
     try {
-      console.log('🔄 Fetching user data from /auth/me...');
+      // console.log('🔄 Fetching user data from /auth/me...');
       const { apiFetch } = await import('@/lib/api');
       const response = await apiFetch('/auth/me');
       const data = await response.json();
 
       if (data.user) {
-        console.log('✅ User data fetched successfully:', data.user);
+        // console.log('✅ User data fetched successfully:', data.user);
         
         // Ensure user has all required fields
         const userWithDefaults: User = {

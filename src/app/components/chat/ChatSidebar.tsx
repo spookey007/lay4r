@@ -320,7 +320,6 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
         ) : (
           <div className="py-2">
             {allItems.map((item) => {
-              console.log(item)
               if (item.searchType === 'channel') {
                 return (
                   <button

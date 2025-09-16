@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
 const RECIPIENT_ADDRESS = import.meta.env.VITE_RECIPIENT_ADDRESS;
 const MAINNET_CHAIN_ID = import.meta.env.VITE_MAINNET_CHAIN_ID;
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 // const SEPOLIA_CHAIN_ID = 11155111n; // Commented out for future use
 
 // Mainnet chain ID

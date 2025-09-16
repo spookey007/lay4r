@@ -49,10 +49,10 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
       setConnected(connected);
     };
 
-    on('connection', handleConnectionChange);
+    on('CONNECTION', handleConnectionChange);
 
     return () => {
-      off('connection', handleConnectionChange);
+      off('CONNECTION', handleConnectionChange);
     };
   }, [on, off, setConnected]);
 
@@ -73,7 +73,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
   // Refresh messages when widget is opened
   useEffect(() => {
     if (open && currentChannelId) {
-      console.log('🔄 [WIDGET] Widget opened, will refresh messages for channel:', currentChannelId);
+      // console.log('🔄 [WIDGET] Widget opened, will refresh messages for channel:', currentChannelId);
       // Trigger force refresh
       setForceRefresh(true);
       setTimeout(() => setForceRefresh(false), 100);

@@ -21,6 +21,7 @@ export default function MessageList({
   setSwitchingChat,
   forceRefresh = false
 }: MessageListProps) {
+  
   const { currentUser } = useChatStore();
   const { on, off, isConnected } = useWebSocket();
   const localMessagesEndRef = useRef<HTMLDivElement>(null);
@@ -292,6 +293,14 @@ export default function MessageList({
     };
 
     const handleMessagesLoaded = (payload: any) => {
+      console.log('📚 [MESSAGELIST] handleMessagesLoaded called:', {
+        payloadChannelId: payload.channelId,
+        currentChannelId: channelId,
+        messageCount: payload.messages.length,
+        switchingChat,
+        hasSetSwitchingChat: !!setSwitchingChat
+      });
+      
       if (payload.channelId === channelId) {
         console.log('📚 Messages loaded from server:', {
           channelId: payload.channelId,
@@ -300,6 +309,14 @@ export default function MessageList({
         });
         setMessages(channelId, payload.messages);
         setHasMoreMessages(payload.messages.length === 50); // Assuming 50 is the limit
+        
+        // Clear switching chat state when messages are actually loaded
+        if (switchingChat && setSwitchingChat) {
+          console.log('📚 Clearing switchingChat state - messages loaded');
+          setSwitchingChat(false);
+        }
+      } else {
+        console.log('📚 [MESSAGELIST] Channel ID mismatch, ignoring message load');
       }
     };
 
@@ -364,23 +381,28 @@ export default function MessageList({
         
         return () => clearTimeout(retryTimeout);
       }
-    }
-    
-    // Clear switching chat state after loading messages
-    if (switchingChat && setSwitchingChat) {
-      setTimeout(() => setSwitchingChat(false), 500);
+      
+      // Fallback: Clear switching state after 3 seconds if no messages are received
+      if (switchingChat && setSwitchingChat) {
+        const fallbackTimeout = setTimeout(() => {
+          console.log('📚 Fallback: Clearing switchingChat state after timeout');
+          setSwitchingChat(false);
+        }, 3000);
+        
+        return () => clearTimeout(fallbackTimeout);
+      }
     }
   }, [channelId, fetchMessages, switchingChat, setSwitchingChat, isConnected]);
 
   // Force refresh when widget is reopened
   useEffect(() => {
     if (forceRefresh && channelId) {
-      console.log('🔄 [MESSAGELIST] Force refresh triggered for channel:', channelId);
+      // console.log('🔄 [MESSAGELIST] Force refresh triggered for channel:', channelId);
       fetchMessages(channelId, 50);
       
       // Also check for any missed messages by fetching with a recent timestamp
       const recentTimestamp = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // Last 5 minutes
-      console.log('🔄 [MESSAGELIST] Checking for missed messages since:', recentTimestamp);
+      // console.log('🔄 [MESSAGELIST] Checking for missed messages since:', recentTimestamp);
       fetchMessages(channelId, 100, recentTimestamp);
     }
   }, [forceRefresh, channelId, fetchMessages]);
@@ -439,6 +461,7 @@ export default function MessageList({
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
               <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-sm text-gray-600 font-medium">Loading messages...</p>
+              <p className="text-xs text-gray-400 mt-2">Debug: switchingChat=true, messages={currentMessages.length}</p>
             </div>
           </div>
         )}

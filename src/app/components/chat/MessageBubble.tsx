@@ -49,13 +49,13 @@ export default function MessageBubble({
 
   // Debug logging for message author
   if (message.author?.username === "Layer4 Bot" || message.author?.displayName === "Layer4 Bot") {
-    console.log('🤖 [BOT DEBUG] Message author data:', {
-      id: message.author.id,
-      username: message.author.username,
-      displayName: message.author.displayName,
-      walletAddress: message.author.walletAddress,
-      isVerified: message.author.isVerified
-    });
+    // console.log('🤖 [BOT DEBUG] Message author data:', {
+    //   id: message.author.id,
+    //   username: message.author.username,
+    //   displayName: message.author.displayName,
+    //   walletAddress: message.author.walletAddress,
+    //   isVerified: message.author.isVerified
+    // });
   }
 
   // Common reaction emojis

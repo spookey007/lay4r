@@ -129,6 +129,14 @@ async function updateUserPresence(userId, status) {
 if (dev) {
   console.log('🚀 [SERVER] Starting in development mode (WebSocket only)...');
   startServer();
+  // console.log('🚀 [SERVER] Starting Next.js preparation...');
+  // nextApp.prepare().then(() => {
+  //   console.log('✅ [SERVER] Next.js preparation completed');
+  //   startServer();
+  // }).catch((error) => {
+  //   console.error('❌ [SERVER] Next.js preparation failed:', error);
+  //   process.exit(1);
+  // });
 } else {
   console.log('🚀 [SERVER] Starting Next.js preparation...');
   nextApp.prepare().then(() => {
@@ -178,6 +186,9 @@ function startServer() {
     // In development, just handle API routes and WebSocket
     app.use((req, res) => {
       res.status(404).json({ error: 'Not found - use Next.js dev server on port 3000' });
+    });
+    app.use((req, res) => {
+      return handle(req, res);
     });
   }
 
@@ -585,7 +596,6 @@ function startServer() {
           username,
           code,
           reason: reason.toString(),
-          wasClean: code === 1000,
           totalConnections: connections.size - 1,
           timestamp: new Date().toISOString()
         });

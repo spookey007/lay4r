@@ -26,7 +26,7 @@ export default function Header() {
         .then(({ authService }) =>
           authService.fetchUser()
             .then((user) => {
-              console.log("Header user data:", user);
+              // console.log("Header user data:", user);
               setUser(user);
             })
             .catch(() => {})
@@ -59,7 +59,7 @@ export default function Header() {
     try {
       const { authService } = await import("@/lib/authService");
       const user = await authService.fetchUser();
-      console.log("Login user data:", user);
+      // console.log("Login user data:", user);
       if (user && user.walletAddress === walletAddress) {
         setUser(user);
         return;

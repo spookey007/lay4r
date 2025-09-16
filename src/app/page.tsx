@@ -80,8 +80,8 @@ const fetchTokenData = async () => {
   }, []);
 
   return (
-    <div className="flex flex-col flex-1 py-4" style={{ fontFamily: "'LisaStyle', monospace" }}>
-      {/* Hero Section */}
+        <div className="flex flex-col flex-1 py-4" style={{ fontFamily: "'LisaStyle', monospace" }}>
+          {/* Hero Section */}
       <section className="lisa-window">
         <div className="lisa-titlebar">
           <div className="lisa-title">Layer4 — Welcome</div>

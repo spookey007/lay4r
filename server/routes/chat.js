@@ -373,7 +373,7 @@ router.post('/media/upload', mediaUpload.single('file'), async (req, res) => {
     }
 
     // Generate URLs
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const url = `${baseUrl}/uploads/chat/${req.file.filename}`;
     
     // For images, we could generate thumbnails here

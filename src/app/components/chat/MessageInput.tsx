@@ -29,7 +29,7 @@ export default function MessageInput({
   const { sendChatMessage, startTyping, stopTyping } = useChatEvents();
   const { getCurrentChannel, currentChannelId, channels, setCurrentChannel, setMessages, addMessage, removeMessage, currentUser } = useChatStore();
   const { isConnected } = useWebSocket();
-
+  console.log('isConnected', isConnected);
   const channel = getCurrentChannel();
   
   // Debug current user and wait for it to be loaded

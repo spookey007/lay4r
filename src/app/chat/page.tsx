@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useChatStore } from '@/stores/chatStore';
-import { useWebSocket, useChatEvents, SERVER_EVENTS } from '@/contexts/WebSocketContext';
+import { useWebSocket, useChatEvents } from '@/contexts/WebSocketContext';
+import { SERVER_EVENTS } from '@/types/events';
 import { useWallet } from '@solana/wallet-adapter-react';
 import ChatSidebar from '@/app/components/chat/ChatSidebar';
 import MessageList from '@/app/components/chat/MessageList';
@@ -32,9 +33,14 @@ function ChatContent() {
     setCurrentUser
   } = useChatStore();
 
-  const { on, off, connectIfAuthenticated } = useWebSocket();
+  const { on, off, isConnected: wsIsConnected, connectIfAuthenticated } = useWebSocket(); // ✅ Get isConnected from context
 
-  // Check authentication on mount using centralized auth service
+  // Sync WebSocket connection state with Zustand
+  useEffect(() => {
+    setConnected(wsIsConnected);
+  }, [wsIsConnected, setConnected]);
+
+  // Check authentication on mount
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -42,16 +48,14 @@ function ChatContent() {
         const user = await authService.initialize();
         
         if (user) {
-
           setCurrentUser(user);
           setIsAuth(true);
-
+          // ✅ Trigger connection AFTER auth
+          connectIfAuthenticated();
         } else {
-
           window.location.href = '/';
         }
       } catch (error) {
-
         window.location.href = '/';
       } finally {
         setIsLoading(false);
@@ -59,45 +63,24 @@ function ChatContent() {
     };
     
     initializeAuth();
-  }, [setCurrentUser]);
-
-  // Handle WebSocket connection status
-  useEffect(() => {
-    const handleConnectionChange = (connected: boolean) => {
-
-      setConnected(connected);
-      
-      if (connected) {
-
-      } else {
-
-      }
-    };
-
-    on('connection', handleConnectionChange);
-
-    return () => {
-      off('connection', handleConnectionChange);
-    };
-  }, [on, off, setConnected]);
+  }, [setCurrentUser, connectIfAuthenticated]);
 
   // Handle WebSocket errors
   useEffect(() => {
-    const handleError = (error: any) => {
-      setError(error.message || 'Connection error');
+    const handleError = (payload: any) => {
+      setError(payload.message || 'Connection error');
     };
 
-    on('error', handleError);
+    on(SERVER_EVENTS.ERROR, handleError);
 
     return () => {
-      off('error', handleError);
+      off(SERVER_EVENTS.ERROR, handleError);
     };
   }, [on, off, setError]);
 
   // Handle typing events
   useEffect(() => {
     const handleTypingStarted = (payload: any) => {
-
       addTypingUser(payload.channelId, {
         userId: payload.userId,
         channelId: payload.channelId,
@@ -106,44 +89,39 @@ function ChatContent() {
     };
 
     const handleTypingStopped = (payload: any) => {
-
       removeTypingUser(payload.channelId, payload.userId);
     };
 
-    // Set up WebSocket event listeners
-
-    // Note: MESSAGE_RECEIVED is handled by MessageList component to avoid duplicates
-    on('TYPING_STARTED', handleTypingStarted);
-    on('TYPING_STOPPED', handleTypingStopped);
-    
-
+    on(SERVER_EVENTS.TYPING_STARTED, handleTypingStarted);
+    on(SERVER_EVENTS.TYPING_STOPPED, handleTypingStopped);
 
     return () => {
-
-      // Note: MESSAGE_RECEIVED is handled by MessageList component to avoid duplicates
-      off('TYPING_STARTED', handleTypingStarted);
-      off('TYPING_STOPPED', handleTypingStopped);
+      off(SERVER_EVENTS.TYPING_STARTED, handleTypingStarted);
+      off(SERVER_EVENTS.TYPING_STOPPED, handleTypingStopped);
     };
   }, [on, off, addTypingUser, removeTypingUser]);
 
   // Note: Removed fallback polling to avoid interference with real-time WebSocket messages
 
   const handleChannelSelect = async (channelId: string) => {
-
+    console.log('🔄 [CHAT] Channel selected:', channelId);
     
     // Show loader immediately
     setSwitchingChat(true);
     
     setCurrentChannelId(channelId);
-
     setCurrentChannel(channelId);
-
     
     // Verify the store was updated
     const { currentChannelId: storeChannelId } = useChatStore.getState();
-
     
     setReplyToMessage(null);
+    
+    // Fallback: Clear switching state after 5 seconds
+    setTimeout(() => {
+      console.log('🔄 [CHAT] Fallback: Clearing switchingChat state after timeout');
+      setSwitchingChat(false);
+    }, 5000);
     
     // Load messages for the selected channel
     try {
@@ -350,7 +328,7 @@ function ChatContent() {
             </div>
           )}
           {/* Debug buttons */}
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <button
               onClick={async () => {
                 const { debugAuth, debugWebSocket } = await import('../../lib/debug-auth');
@@ -374,8 +352,7 @@ function ChatContent() {
                 const { createTestSession } = await import('../../lib/debug-auth');
                 const sessionData = await createTestSession();
                 if (sessionData) {
-
-                  connectIfAuthenticated();
+                  // Session created - WebSocket will auto-connect via useEffect
                   // Refresh the page to apply the new session
                   setTimeout(() => window.location.reload(), 1000);
                 }
@@ -384,22 +361,30 @@ function ChatContent() {
             >
               🧪 Test Login
             </button>
-            <button
-              onClick={async () => {
-                const { quickWalletConnect } = await import('../../lib/debug-auth');
-                const loginData = await quickWalletConnect();
-                if (loginData) {
-
-                  connectIfAuthenticated();
-                  // Refresh the page to apply the new session
-                  setTimeout(() => window.location.reload(), 1000);
-                }
-              }}
-              className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600"
-            >
-              👛 Connect Wallet
-            </button>
-          </div>
+        <button
+          onClick={async () => {
+            const { quickWalletConnect } = await import('../../lib/debug-auth');
+            const loginData = await quickWalletConnect();
+            if (loginData) {
+              // Login successful - WebSocket will auto-connect via useEffect
+              // Refresh the page to apply the new session
+              setTimeout(() => window.location.reload(), 1000);
+            }
+          }}
+          className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600"
+        >
+          👛 Connect Wallet
+        </button>
+        <button
+          onClick={() => {
+            console.log('🔄 [CHAT] Manual clear switchingChat');
+            setSwitchingChat(false);
+          }}
+          className="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600"
+        >
+          🔄 Clear Loading
+        </button>
+          </div> */}
         </div>
       </div>
     </div>
