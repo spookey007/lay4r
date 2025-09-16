@@ -126,20 +126,19 @@ async function updateUserPresence(userId, status) {
 }
 
 // Initialize server based on environment
-if (dev) {
-  console.log('🚀 [SERVER] Starting in development mode (WebSocket only)...');
-  startServer();
-} else {
-  console.log('🚀 [SERVER] Starting Next.js preparation...');
+// 🚀 START WEBSOCKET SERVER IMMEDIATELY — DON'T WAIT FOR NEXT.JS
+console.log('🚀 [SERVER] Starting WebSocket server immediately...');
+startServer(); // ← START WEBSOCKET SERVER RIGHT NOW
+
+// 🧩 PREPARE NEXT.JS ASYNCHRONOUSLY — DON'T BLOCK WEBSOCKET
+if (!dev) {
+  console.log('🧩 [SERVER] Preparing Next.js asynchronously...');
   nextApp.prepare().then(() => {
     console.log('✅ [SERVER] Next.js preparation completed');
-    startServer();
   }).catch((error) => {
     console.error('❌ [SERVER] Next.js preparation failed:', error);
-    process.exit(1);
   });
 }
-
 function startServer() {
   // Express app setup
   const app = express();
@@ -163,6 +162,17 @@ function startServer() {
   app.use('/api/staking', stakingRoutes);
   app.use('/api/posts', postsRoutes);
   app.use('/api/dextools', dextoolsRoutes);
+
+    // In your Express app setup (inside startServer())
+  app.get('/api/ws-health', (req, res) => {
+    res.json({
+      status: 'ok',
+      websocket: {
+        connections: connections.size,
+        timestamp: new Date().toISOString()
+      }
+    });
+  });
 
   // Health check endpoint
   app.get('/api/health', (req, res) => {

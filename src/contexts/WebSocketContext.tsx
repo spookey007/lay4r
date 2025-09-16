@@ -84,49 +84,70 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   }, [getToken]);
 
   const connectIfAuthenticated = useCallback(async () => {
-    console.log('[WebSocketProvider] 🔄 connectIfAuthenticated called', {
-      connected: connectedRef.current,
-      publicKey: publicKeyRef.current?.toString(),
-      isConnecting: isConnectingRef.current,
-      isAlreadyConnected: clientRef.current?.isConnected(),
+    // 🚫 ATOMIC LOCK — Layer4 Tek Protocol allows only ONE connection attempt at a time
+    if (isConnectingRef.current) {
+      console.log('[WebSocketProvider] ⏸️ Connection already in progress — Layer4 Tek Protocol holding steady');
+      return;
+    }
+  
+    // ✅ Check if already connected (immediate, no stale state)
+    if (clientRef.current?.isConnected()) {
+      console.log('[WebSocketProvider] ✅ Already connected — Layer4 Tek Protocol engaged');
+      return;
+    }
+  
+    // ❌ Check auth using refs (stable, no dependency issues)
+    if (!connectedRef.current || !publicKeyRef.current) {
+      console.log('[WebSocketProvider] ❌ Not authenticated — Layer4 Tek Protocol on standby');
+      return;
+    }
+  
+    console.log('[WebSocketProvider] 🚀 Initiating Layer4 Tek Protocol connection...', {
+      publicKey: publicKeyRef.current.toString(),
       timestamp: new Date().toISOString()
     });
-
-    // Prevent multiple simultaneous connection attempts
-    if (isConnectingRef.current) {
-      console.log('[WebSocketProvider] ⏸️ Already connecting, skipping');
-      return;
-    }
-    
-    if (clientRef.current?.isConnected()) {
-      console.log('[WebSocketProvider] ✅ Already connected, skipping');
-      return;
-    }
-
-    if (!connectedRef.current || !publicKeyRef.current) {
-      console.log('[WebSocketProvider] ❌ Not authenticated, skipping');
-      return;
-    }
-
-    console.log('[WebSocketProvider] 🚀 Starting connection...');
+  
+    // 🔒 SET LOCK BEFORE ANY ASYNC OPERATION
     isConnectingRef.current = true;
-    
+  
     try {
-      // Initialize client (this will disconnect any existing one)
-      initClient();
-      
-      // Attempt connection
-      await clientRef.current?.connect();
+      // 🧹 CLEANUP: Disconnect any existing client FIRST
+      if (clientRef.current) {
+        console.log('[WebSocketProvider] 🧹 Cleaning up previous WebSocket client — Layer4 Tek Protocol discipline');
+        clientRef.current.disconnect();
+      }
+  
+      // 🆕 CREATE: Initialize new client
+      initClient(); // This sets clientRef.current = new WebSocketClient(...)
+  
+      // 🔄 CONNECT: Only if client was created
+      if (clientRef.current) {
+        console.log('[WebSocketProvider] 🤝 Attempting WebSocket connection — Layer4 Tek Protocol in motion');
+        await clientRef.current.connect();
+        
+        // ✅ VERIFY: Sync state immediately after connect
+        const isConnectedNow = clientRef.current.isConnected();
+        setIsConnected(isConnectedNow);
+        
+        if (isConnectedNow) {
+          console.log('[WebSocketProvider] 💪 Layer4 Tek Protocol connection established — holding strong');
+        } else {
+          console.warn('[WebSocketProvider] ⚠️ Connection attempt completed but not connected — Layer4 Tek Protocol holding position');
+        }
+      }
     } catch (error) {
-      console.error('[WebSocketProvider] Connection error:', error);
+      console.error('[WebSocketProvider] 💥 Connection attempt failed — Layer4 Tek Protocol absorbing shock:', error);
     } finally {
+      // 🔓 ALWAYS RELEASE LOCK — even on error
       isConnectingRef.current = false;
+      console.log('[WebSocketProvider] 🔓 Connection attempt completed — Layer4 Tek Protocol lock released');
     }
-  }, [initClient]); // Remove connected and publicKey to prevent re-creation
+  }, [initClient]); // ✅ Only depends on initClient — stable across re-renders
 
   // Sync isConnected state with client
+// ✅ ADD THIS — Sync connection state IMMEDIATELY and on tab focus
   useEffect(() => {
-    const checkConnection = () => {
+    const syncConnectionState = () => {
       if (clientRef.current) {
         const connected = clientRef.current.isConnected();
         setIsConnected(connected);
@@ -136,11 +157,29 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       }
     };
 
-    checkConnection(); // Check immediately
-    const interval = setInterval(checkConnection, 1000);
-    
-    return () => clearInterval(interval);
-  }, []); // ✅ Empty dependency array — we only need to set up the interval once
+    // Listen to tab visibility change (user switches back to tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        syncConnectionState();
+      }
+    };
+
+    // Listen to window focus (user clicks back into browser)
+    const handleWindowFocus = () => {
+      syncConnectionState();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    // Initial sync on mount
+    syncConnectionState();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, []); // ✅ Empty dependency array — runs once on mount
 
   const sendMessage = useCallback((event: ClientEvent, payload: any) => {
     clientRef.current?.sendMessage(event, payload);
