@@ -149,7 +149,8 @@ function startServer() {
     "http://localhost:3001",
     "https://socket.lay4r.io",
     "https://lay4r.io",
-    "https://demo.lay4r.io"
+    "https://demo.lay4r.io",
+    "https://api.lay4r.io"
   ];
   
   app.use(cors({
