@@ -144,10 +144,25 @@ function startServer() {
   const app = express();
 
   // Middleware
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://socket.lay4r.io",
+    "https://lay4r.io",
+    "https://demo.lay4r.io"
+  ];
+  
   app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true
   }));
+  
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(cookieParser());
@@ -628,6 +643,7 @@ function startServer() {
   const port = process.env.EXPRESS_PORT || 3001;
   const host = process.env.HOST || '0.0.0.0'; // ← Changed to 0.0.0.0 for external access
   const protocol = process.env.NODE_ENV === 'production' ? 'wss' : 'ws';
+  const WSS_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
   const domain = process.env.NODE_ENV === 'production' ? process.env.DOMAIN || 'demo.lay4r.io' : `localhost:${port}`;
   
   server.listen(port, host, () => { // ← Added host parameter
@@ -635,7 +651,7 @@ function startServer() {
       port,
       host,
       apiUrl: `${protocol === 'wss' ? 'https' : 'http'}://${domain}/api`,
-      websocketUrl: `${protocol}://${domain}`,
+      websocketUrl: `${WSS_URL}`,
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development'
     });
