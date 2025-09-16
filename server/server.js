@@ -126,37 +126,44 @@ async function updateUserPresence(userId, status) {
 }
 
 // Initialize server based on environment
-if (dev) {
-  console.log('🚀 [SERVER] Starting in development mode (WebSocket only)...');
-  startServer();
-  // console.log('🚀 [SERVER] Starting Next.js preparation...');
-  // nextApp.prepare().then(() => {
-  //   console.log('✅ [SERVER] Next.js preparation completed');
-  //   startServer();
-  // }).catch((error) => {
-  //   console.error('❌ [SERVER] Next.js preparation failed:', error);
-  //   process.exit(1);
-  // });
-} else {
-  console.log('🚀 [SERVER] Starting Next.js preparation...');
+// 🚀 START WEBSOCKET SERVER IMMEDIATELY — DON'T WAIT FOR NEXT.JS
+console.log('🚀 [SERVER] Starting WebSocket server immediately...');
+startServer(); // ← START WEBSOCKET SERVER RIGHT NOW
+
+// 🧩 PREPARE NEXT.JS ASYNCHRONOUSLY — DON'T BLOCK WEBSOCKET
+if (!dev) {
+  console.log('🧩 [SERVER] Preparing Next.js asynchronously...');
   nextApp.prepare().then(() => {
     console.log('✅ [SERVER] Next.js preparation completed');
-    startServer();
   }).catch((error) => {
     console.error('❌ [SERVER] Next.js preparation failed:', error);
-    process.exit(1);
   });
 }
-
 function startServer() {
   // Express app setup
   const app = express();
 
   // Middleware
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://socket.lay4r.io",
+    "https://lay4r.io",
+    "https://demo.lay4r.io",
+    "https://api.lay4r.io"
+  ];
+  
   app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true
   }));
+  
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(cookieParser());
@@ -172,6 +179,17 @@ function startServer() {
   app.use('/api/posts', postsRoutes);
   app.use('/api/dextools', dextoolsRoutes);
 
+    // In your Express app setup (inside startServer())
+  app.get('/api/ws-health', (req, res) => {
+    res.json({
+      status: 'ok',
+      websocket: {
+        connections: connections.size,
+        timestamp: new Date().toISOString()
+      }
+    });
+  });
+
   // Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -186,9 +204,6 @@ function startServer() {
     // In development, just handle API routes and WebSocket
     app.use((req, res) => {
       res.status(404).json({ error: 'Not found - use Next.js dev server on port 3000' });
-    });
-    app.use((req, res) => {
-      return handle(req, res);
     });
   }
 
@@ -596,6 +611,7 @@ function startServer() {
           username,
           code,
           reason: reason.toString(),
+          wasClean: code === 1000,
           totalConnections: connections.size - 1,
           timestamp: new Date().toISOString()
         });
@@ -628,6 +644,7 @@ function startServer() {
   const port = process.env.EXPRESS_PORT || 3001;
   const host = process.env.HOST || '0.0.0.0'; // ← Changed to 0.0.0.0 for external access
   const protocol = process.env.NODE_ENV === 'production' ? 'wss' : 'ws';
+  const WSS_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
   const domain = process.env.NODE_ENV === 'production' ? process.env.DOMAIN || 'demo.lay4r.io' : `localhost:${port}`;
   
   server.listen(port, host, () => { // ← Added host parameter
@@ -635,7 +652,7 @@ function startServer() {
       port,
       host,
       apiUrl: `${protocol === 'wss' ? 'https' : 'http'}://${domain}/api`,
-      websocketUrl: `${protocol}://${domain}`,
+      websocketUrl: `${WSS_URL}`,
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development'
     });

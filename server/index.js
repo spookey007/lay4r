@@ -131,14 +131,14 @@ console.log('🚀 [SERVER] Starting WebSocket server immediately...');
 startServer(); // ← START WEBSOCKET SERVER RIGHT NOW
 
 // 🧩 PREPARE NEXT.JS ASYNCHRONOUSLY — DON'T BLOCK WEBSOCKET
-if (!dev) {
-  console.log('🧩 [SERVER] Preparing Next.js asynchronously...');
-  nextApp.prepare().then(() => {
-    console.log('✅ [SERVER] Next.js preparation completed');
-  }).catch((error) => {
-    console.error('❌ [SERVER] Next.js preparation failed:', error);
-  });
-}
+// if (!dev) {
+//   console.log('🧩 [SERVER] Preparing Next.js asynchronously...');
+//   nextApp.prepare().then(() => {
+//     console.log('✅ [SERVER] Next.js preparation completed');
+//   }).catch((error) => {
+//     console.error('❌ [SERVER] Next.js preparation failed:', error);
+//   });
+// }
 function startServer() {
   // Express app setup
   const app = express();
@@ -196,16 +196,16 @@ function startServer() {
   });
 
   // All other requests handled by Next.js - only in production
-  if (!dev) {
-    app.use((req, res) => {
-      return handle(req, res);
-    });
-  } else {
-    // In development, just handle API routes and WebSocket
-    app.use((req, res) => {
-      res.status(404).json({ error: 'Not found - use Next.js dev server on port 3000' });
-    });
-  }
+  // if (!dev) {
+  //   app.use((req, res) => {
+  //     return handle(req, res);
+  //   });
+  // } else {
+  //   // In development, just handle API routes and WebSocket
+  //   app.use((req, res) => {
+  //     res.status(404).json({ error: 'Not found - use Next.js dev server on port 3000' });
+  //   });
+  // }
 
   // WebSocket event handlers
   async function handleSendMessage(userId, payload) {
