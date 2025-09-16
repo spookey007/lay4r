@@ -13,7 +13,27 @@ export const config = {
   
   // CORS configuration
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) return callback(null, true); // allow non-browser requests (curl, Postman)
+
+      try {
+        const hostname = new URL(origin).hostname;
+
+        // allow localhost:3000 for dev OR any subdomain of lay4r.io
+        if (
+          hostname === "localhost" ||
+          hostname.endsWith(".lay4r.io") ||
+          hostname === "lay4r.io"
+        ) {
+          return callback(null, true);
+        }
+      } catch (err) {
+        return callback(err as Error);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
   },
   
   // Backend server configuration
