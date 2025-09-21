@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useChatEvents } from '@/contexts/WebSocketContext';
 import { Message, MessageReaction, useChatStore } from '@/stores/chatStore';
 import { useWallet } from '@solana/wallet-adapter-react';
+import MessageStatus from '@/components/MessageStatus';
 
 // Default avatar placeholder
 const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
@@ -142,15 +143,16 @@ export default function MessageBubble({
   const author = message.author?.username || message.author?.displayName || (message.authorId ? `${message.authorId.slice(0,4)}…${message.authorId.slice(-4)}` : "Anonymous");
 
   return (
-    <div className={`flex gap-3 group hover:bg-white/50 -mx-2 px-2 py-1 rounded-xl transition-all duration-200 ${isOwnMessage ? 'justify-end' : 'justify-start'}`} ref={messageRef}>
+    <div className={`flex gap-3 group hover:bg-black/10 -mx-2 px-2 py-1 transition-all duration-200 ${isOwnMessage ? 'justify-end' : 'justify-start'}`} ref={messageRef}>
       {/* Avatar for received messages (left side) */}
       {!isOwnMessage && showAvatar && (
-        <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500 ring-2 ring-white shadow-sm">
+        <div className="w-10 h-10 flex-shrink-0 overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-gradient-to-br from-yellow-300 via-orange-400 to-red-500">
           <img 
             src={message.author?.avatarUrl || DEFAULT_AVATAR} 
             alt={author} 
-            className="w-full h-full object-cover" 
+            className="w-full h-full object-cover pixelated" 
             onError={handleAvatarError}
+            style={{ imageRendering: 'pixelated' }}
           />
         </div>
         
@@ -158,7 +160,7 @@ export default function MessageBubble({
       {!isOwnMessage && !showAvatar && (
         <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center">
           {showTimestamp && message.sentAt && (
-            <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-xs text-black opacity-0 group-hover:opacity-100 transition-opacity font-mono bg-yellow-300 border border-black px-2 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
               {new Date(message.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
@@ -170,54 +172,58 @@ export default function MessageBubble({
         {/* Only show author info for other people's messages, not your own */}
         {!isOwnMessage && showAvatar && (
           <div className="flex items-center gap-2 mb-1 justify-start">
-            <span className={`font-medium text-xs ${
-              isBot ? 'text-orange-600' : 'text-gray-700'
+            <span className={`font-bold text-sm font-mono tracking-wide ${
+              isBot ? 'text-orange-600' : 'text-black'
             }`}>
               {author}
             </span>
             {message.author?.isVerified && !isBot && (
-              <div className="text-blue-500" title="Verified wallet">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+              <div className="text-green-600" title="Verified wallet">
+                <div className="w-3 h-3 bg-green-500 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"></div>
               </div>
             )}
             {isBot && (
-              <span className="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded-full font-medium">
+              <span className="bg-yellow-300 text-black text-xs px-2 py-0.5 font-bold font-mono border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                 BOT
               </span>
             )}
             {message.sentAt && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-black font-mono bg-cyan-300 border border-black px-2 py-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
                 {new Date(message.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
           </div>
         )}
         
-        <div className={`rounded-2xl px-3 py-2 shadow-sm relative ${
+        <div className={`px-3 py-2 relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
           isOwnMessage 
-            ? 'bg-blue-500 text-white' 
+            ? 'bg-gradient-to-br from-blue-400 to-purple-500 text-white' 
             : isBot 
-              ? 'bg-orange-50 text-orange-900 border border-orange-200' 
-              : 'bg-white text-gray-900 border border-gray-200'
+              ? 'bg-gradient-to-br from-yellow-300 to-orange-400 text-black' 
+              : 'bg-gradient-to-br from-green-300 to-cyan-400 text-black'
         } ${message.isOptimistic ? 'opacity-70' : ''}`}>
-          {/* Timestamp for your own messages (shows on hover) */}
-          {isOwnMessage && message.sentAt && !message.isOptimistic && (
-            <div className="absolute -top-6 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded shadow-sm">
-                {new Date(message.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          )}
-          
-          {/* Loading indicator for optimistic messages */}
-          {isOwnMessage && message.isOptimistic && (
-            <div className="absolute -top-6 right-0">
-              <div className="flex items-center gap-1 text-xs text-gray-400 bg-white px-2 py-1 rounded shadow-sm">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                <span>Sending...</span>
+          {/* Message status and timestamp container */}
+          {isOwnMessage && (
+            <div className="absolute -top-8 right-0 flex flex-col items-end gap-1">
+              {/* Message status indicator */}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <MessageStatus
+                  isOptimistic={message.isOptimistic}
+                  isDelivered={!message.isOptimistic}
+                  isRead={message.readReceipts && message.readReceipts.length > 0}
+                  readCount={message.readReceipts?.length || 0}
+                  className="bg-black text-white px-2 py-1 text-xs font-mono border border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]"
+                />
               </div>
+              
+              {/* Timestamp */}
+              {message.sentAt && !message.isOptimistic && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <span className="text-xs text-black bg-yellow-300 px-2 py-1 font-mono border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                    {new Date(message.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              )}
             </div>
           )}
           <div className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -260,14 +266,14 @@ export default function MessageBubble({
               <button
                 key={emoji}
                 onClick={() => handleReactionClick(emoji)}
-                className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 transition-all hover:scale-105 border ${
+                className={`text-xs px-2 py-1 font-bold font-mono flex items-center gap-1 transition-all hover:scale-105 border border-black ${
                   reactions.some(r => r.userId === publicKey?.toString()) 
-                    ? 'bg-blue-100 text-blue-800 border-blue-300 shadow-sm' 
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 shadow-sm'
+                    ? 'bg-yellow-300 text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' 
+                    : 'bg-white text-black hover:bg-yellow-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
                 }`}
               >
-                <span>{emoji}</span>
-                <span>{reactions.length}</span>
+                <span className="text-sm">{emoji}</span>
+                <span className="bg-black text-white px-1 py-0.5 font-mono text-xs">{reactions.length}</span>
               </button>
             ))}
           </div>
@@ -275,25 +281,25 @@ export default function MessageBubble({
 
         {/* Read receipts for own messages - only show on last message */}
         {isOwnMessage && showTimestamp && message.readReceipts && message.readReceipts.length > 0 && (
-          <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 justify-end">
+          <div className="flex items-center gap-1 mt-1 text-xs justify-end">
             <div className="flex -space-x-1">
               {message.readReceipts.slice(0, 3).map((receipt, index) => (
                 <div
                   key={receipt.id}
-                  className="w-4 h-4 rounded-full bg-green-100 border border-white flex items-center justify-center"
+                  className="w-4 h-4 bg-green-500 border border-black flex items-center justify-center shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
                   title={`Read at ${new Date(receipt.readAt).toLocaleTimeString()}`}
                 >
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-white border border-black"></div>
                 </div>
               ))}
               {message.readReceipts.length > 3 && (
-                <div className="w-4 h-4 rounded-full bg-gray-100 border border-white flex items-center justify-center text-xs font-medium">
+                <div className="w-4 h-4 bg-gray-500 border border-black flex items-center justify-center text-xs font-bold font-mono text-white shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
                   +{message.readReceipts.length - 3}
                 </div>
               )}
             </div>
-            <span className="text-xs text-gray-400">
-              {message.readReceipts.length} read
+            <span className="text-xs text-black font-mono bg-cyan-300 border border-black px-2 py-1 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+              {message.readReceipts.length} READ
             </span>
           </div>
         )}

@@ -10,6 +10,7 @@ import MessageList from '@/app/components/chat/MessageList';
 import MessageInput from '@/app/components/chat/MessageInput';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getCurrentUser } from '@/lib/auth';
+import ConnectionStatus from '@/components/ConnectionStatus';
 
 const queryClient = new QueryClient();
 
@@ -19,6 +20,10 @@ function ChatContent() {
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [replyToMessage, setReplyToMessage] = useState<any>(null);
   const [switchingChat, setSwitchingChat] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showChatView, setShowChatView] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [showUserInfo, setShowUserInfo] = useState(false);
   
   const { 
     isConnected, 
@@ -30,10 +35,11 @@ function ChatContent() {
     removeTypingUser,
     setMessages,
     currentUser,
-    setCurrentUser
+    setCurrentUser,
+    channels
   } = useChatStore();
 
-  const { on, off, isConnected: wsIsConnected, connectIfAuthenticated } = useWebSocket(); // ✅ Get isConnected from context
+  const { on, off, isConnected: wsIsConnected, isConnecting, connectionState, getConnectionMetrics, connectIfAuthenticated } = useWebSocket();
 
   // Sync WebSocket connection state with Zustand
   useEffect(() => {
@@ -101,6 +107,28 @@ function ChatContent() {
     };
   }, [on, off, addTypingUser, removeTypingUser]);
 
+  // Keyboard shortcut for sidebar toggle (Cmd/Ctrl + B)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'b') {
+        event.preventDefault();
+        setSidebarCollapsed(!sidebarCollapsed);
+      }
+    };
+
+    const handleToggleSidebar = () => {
+      setSidebarCollapsed(!sidebarCollapsed);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('toggleSidebar', handleToggleSidebar);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('toggleSidebar', handleToggleSidebar);
+    };
+  }, [sidebarCollapsed]);
+
   // Note: Removed fallback polling to avoid interference with real-time WebSocket messages
 
   const handleChannelSelect = async (channelId: string) => {
@@ -111,6 +139,10 @@ function ChatContent() {
     
     setCurrentChannelId(channelId);
     setCurrentChannel(channelId);
+    
+    // Show chat view and collapse sidebar when channel is selected
+    setShowChatView(true);
+    setSidebarCollapsed(true);
     
     // Verify the store was updated
     const { currentChannelId: storeChannelId } = useChatStore.getState();
@@ -160,22 +192,42 @@ function ChatContent() {
     setReplyToMessage(null);
   };
 
+  const handleBackToChannels = () => {
+    setShowChatView(false);
+    setCurrentChannelId(null);
+    setSidebarCollapsed(false);
+    setReplyToMessage(null);
+  };
+
+  const handleUserClick = (user: any) => {
+    setSelectedUser(user);
+    setShowUserInfo(true);
+  };
+
+  const handleCloseUserInfo = () => {
+    setShowUserInfo(false);
+    setSelectedUser(null);
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-screen bg-blue-100">
+        <div className="text-center bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-8">
+          <div className="w-16 h-16 border-4 border-black border-t-transparent animate-spin mx-auto mb-4"></div>
+          <p className="text-black font-mono font-bold text-lg">LOADING...</p>
+        </div>
       </div>
     );
   }
 
   if (!isAuth || !currentUser) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Please sign in to use chat
+      <div className="flex items-center justify-center h-screen bg-blue-100">
+        <div className="text-center bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-8">
+          <h1 className="text-2xl font-bold text-black font-mono mb-4">
+            PLEASE SIGN IN TO USE CHAT
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-black font-mono">
             You need to be authenticated to access the chat system.
           </p>
         </div>
@@ -184,26 +236,104 @@ function ChatContent() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      {/* Sidebar */}
-      <div className="w-80 flex-shrink-0">
+    <div className="flex h-screen bg-blue-100 max-w-4xl mx-auto">
+      {/* Sidebar - Always visible when not in chat view */}
+      <div className={`${showChatView && sidebarCollapsed ? 'w-0' : 'w-72'} flex-shrink-0 border-r-2 border-black transition-all duration-300 overflow-hidden`}>
         <ChatSidebar 
           onChannelSelect={handleChannelSelect}
           currentChannelId={currentChannelId}
         />
       </div>
 
-      {/* Main chat area */}
-      <div className="flex-1 flex flex-col bg-white rounded-l-2xl shadow-xl border-l border-gray-200 overflow-hidden">
-        {currentChannelId && currentUser ? (
+      {/* Sidebar Toggle Button - Only show when in chat view */}
+      {showChatView && (
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className={`fixed top-4 z-50 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-2 transition-all duration-300 hover:scale-105 group left-4`}
+          title={`${sidebarCollapsed ? 'Show' : 'Hide'} Sidebar (Cmd/Ctrl + B)`}
+        >
+          <svg 
+            className={`w-5 h-5 text-black transition-transform duration-300 ${
+              sidebarCollapsed ? 'rotate-0' : 'rotate-180'
+            }`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          
+          {/* Tooltip */}
+          <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+            {sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+            <div className="text-xs text-gray-300">Cmd/Ctrl + B</div>
+          </div>
+        </button>
+      )}
+
+      {/* Main area - Show channels list or chat view */}
+      <div className="flex-1 flex flex-col bg-white border-l-2 border-black overflow-hidden">
+        {/* Debug info */}
+        <div className="bg-yellow-200 p-2 text-xs font-mono">
+          DEBUG: showChatView={showChatView.toString()}, currentChannelId={currentChannelId}, currentUser={!!currentUser}
+        </div>
+        {!showChatView ? (
+          /* Initial view - Show channels list */
+          <div className="flex-1 flex items-center justify-center bg-blue-100">
+            <div className="bg-red-200 p-4 mb-4 border-2 border-black font-mono text-sm">
+              INITIAL VIEW - NO CHAT SELECTED
+            </div>
+            <div className="text-center max-w-2xl mx-auto p-8">
+              <div className="w-32 h-32 bg-blue-200 border-2 border-black flex items-center justify-center mx-auto mb-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <svg className="w-16 h-16 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <h3 className="text-3xl font-bold text-black mb-4 font-mono">WELCOME TO LAYER4 CHAT! 💬</h3>
+              <p className="text-black mb-8 leading-relaxed font-mono text-lg">
+                SELECT A CHANNEL OR START A CONVERSATION TO BEGIN CHATTING. CONNECT WITH THE COMMUNITY AND SHARE YOUR THOUGHTS!
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <div 
+                  className="bg-white border-2 border-black p-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:bg-blue-50 transition-colors md:cursor-default md:hover:bg-white"
+                  onClick={() => {
+                    if (window.innerWidth < 768) {
+                      setSidebarCollapsed(false);
+                    }
+                  }}
+                >
+                  <div className="text-3xl mb-3">👥</div>
+                  <p className="text-lg font-medium text-black font-mono">FIND PEOPLE</p>
+                  <p className="text-sm text-black font-mono">SEARCH FOR USERS TO CHAT WITH</p>
+                </div>
+                <div 
+                  className="bg-white border-2 border-black p-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:bg-blue-50 transition-colors md:cursor-default md:hover:bg-white"
+                  onClick={() => {
+                    if (window.innerWidth < 768) {
+                      setSidebarCollapsed(false);
+                    }
+                  }}
+                >
+                  <div className="text-3xl mb-3">🏠</div>
+                  <p className="text-lg font-medium text-black font-mono">JOIN CHANNELS</p>
+                  <p className="text-sm text-black font-mono">PARTICIPATE IN GROUP DISCUSSIONS</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : showChatView && currentChannelId && currentUser ? (
           <>
-            {/* Channel header */}
-            <ChannelHeader channelId={currentChannelId} />
+            {/* Channel header with back button */}
+            <ChannelHeader 
+              channelId={currentChannelId} 
+              sidebarCollapsed={sidebarCollapsed}
+              onBackToChannels={handleBackToChannels}
+            />
             
             {/* Debug panel - remove in production */}
-            <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-xs">
+            <div className="bg-blue-100 border-b-2 border-black px-4 py-2 text-xs">
               <div className="flex items-center justify-between">
-                <span>Debug: WebSocket {isConnected ? '✅ Connected' : '❌ Disconnected'}</span>
+                <span className="font-mono font-bold text-black">DEBUG: WEBSOCKET {isConnected ? '✅ CONNECTED' : '❌ DISCONNECTED'}</span>
                 <button
                   onClick={async () => {
 
@@ -216,9 +346,9 @@ function ChatContent() {
 
                     }
                   }}
-                  className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                  className="bg-blue-500 text-white px-2 py-1 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-mono text-xs"
                 >
-                  Check Messages
+                  CHECK MESSAGES
                 </button>
               </div>
             </div>
@@ -239,26 +369,26 @@ function ChatContent() {
               />
             )}
           </>
-        ) : currentChannelId && !currentUser ? (
-          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-            <div className="text-center max-w-md mx-auto p-8">
-              <div className="w-24 h-24 bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        ) : showChatView && currentChannelId && !currentUser ? (
+          <div className="flex-1 flex items-center justify-center bg-blue-100">
+            <div className="text-center max-w-md mx-auto p-8 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <div className="w-24 h-24 bg-red-300 border-2 border-black flex items-center justify-center mx-auto mb-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                <svg className="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                User Session Not Found
+              <h1 className="text-2xl font-bold text-black mb-4 font-mono">
+                USER SESSION NOT FOUND
               </h1>
-              <p className="text-gray-600 mb-6">
+              <p className="text-black mb-6 font-mono">
                 Your session couldn&apos;t be loaded. Please try refreshing the page or reconnecting your wallet.
               </p>
               <div className="space-y-3">
                 <button
                   onClick={() => window.location.reload()}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors font-mono"
                 >
-                  Refresh Page
+                  REFRESH PAGE
                 </button>
                 <button
                   onClick={async () => {
@@ -274,59 +404,19 @@ function ChatContent() {
 
                     }
                   }}
-                  className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                  className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors font-mono"
                 >
-                  Retry Loading Session
+                  RETRY LOADING SESSION
                 </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-            <div className="text-center max-w-md mx-auto p-8">
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to Layer4 Chat! 💬</h3>
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                Select a channel or start a conversation with someone to begin chatting. Connect with the community and share your thoughts!
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-                  <div className="text-2xl mb-2">👥</div>
-                  <p className="text-sm font-medium text-gray-700">Find People</p>
-                  <p className="text-xs text-gray-500">Search for users to chat with</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-                  <div className="text-2xl mb-2">🏠</div>
-                  <p className="text-sm font-medium text-gray-700">Join Channels</p>
-                  <p className="text-xs text-gray-500">Participate in group discussions</p>
-                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Connection status */}
-        <div className="absolute top-6 right-6 space-y-2">
-          <div className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium shadow-lg border ${
-            isConnected 
-              ? 'bg-green-50 text-green-800 border-green-200' 
-              : 'bg-red-50 text-red-800 border-red-200'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${
-              isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-            }`}></div>
-            <span>{isConnected ? '🟢 Connected' : '🔴 Disconnected'}</span>
-          </div>
-          {/* Debug info */}
-          {currentUser && (
-            <div className="bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs">
-              User: {currentUser.username || currentUser.walletAddress?.slice(0, 8)}
-            </div>
-          )}
+        {/* Enhanced Connection status */}
+        <div className="absolute top-6 right-6">
+          <ConnectionStatus showMetrics={true} />
+        </div>
           {/* Debug buttons */}
           {/* <div className="flex gap-2">
             <button
@@ -391,7 +481,7 @@ function ChatContent() {
   );
 }
 
-function ChannelHeader({ channelId }: { channelId: string }) {
+function ChannelHeader({ channelId, sidebarCollapsed, onBackToChannels }: { channelId: string; sidebarCollapsed: boolean; onBackToChannels: () => void }) {
   const { getCurrentChannel } = useChatStore();
   const channel = getCurrentChannel();
 
@@ -428,23 +518,51 @@ function ChannelHeader({ channelId }: { channelId: string }) {
   };
 
   return (
-    <div className="border-b border-gray-100 bg-gradient-to-r from-white to-blue-50 px-8 py-6 shadow-sm">
+    <div className="border-b-2 border-black bg-blue-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
+          {/* Back to channels button */}
+          <button
+            onClick={onBackToChannels}
+            className="p-2 text-black hover:text-blue-600 border border-black bg-white hover:bg-blue-200 transition-all duration-200 hover:scale-105 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+            title="Back to Channels"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {/* Sidebar toggle button when collapsed */}
+          {sidebarCollapsed && (
+            <button
+              onClick={() => {
+                // This will be handled by the parent component
+                const event = new CustomEvent('toggleSidebar');
+                window.dispatchEvent(event);
+              }}
+              className="p-2 text-black hover:text-blue-600 border border-black bg-white hover:bg-blue-200 transition-all duration-200 hover:scale-105 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+              title="Show Sidebar (Cmd/Ctrl + B)"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          )}
+          
           <div className="relative">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+            <div className="w-12 h-12 bg-blue-500 border-2 border-black flex items-center justify-center text-white font-bold text-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
               {channel.type === 'dm' ? getChannelName().charAt(0).toUpperCase() : '#'}
             </div>
             {channel.type === 'dm' && (
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border border-black"></div>
             )}
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 mb-1">
+            <h1 className="text-lg font-bold text-black font-mono mb-1">
               {getChannelName()}
             </h1>
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+            <p className="text-sm text-black font-mono flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 border border-black"></span>
               {getChannelDescription()}
             </p>
           </div>
@@ -452,24 +570,152 @@ function ChannelHeader({ channelId }: { channelId: string }) {
 
         <div className="flex items-center space-x-2">
           {/* Channel actions */}
-          <button className="p-3 text-gray-500 hover:text-blue-600 rounded-xl hover:bg-blue-50 transition-all duration-200 hover:scale-105">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button className="p-2 text-black hover:text-blue-600 border border-black bg-white hover:bg-blue-200 transition-all duration-200 hover:scale-105 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
-          <button className="p-3 text-gray-500 hover:text-blue-600 rounded-xl hover:bg-blue-50 transition-all duration-200 hover:scale-105">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button className="p-2 text-black hover:text-blue-600 border border-black bg-white hover:bg-blue-200 transition-all duration-200 hover:scale-105 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
-          <button className="p-3 text-gray-500 hover:text-red-600 rounded-xl hover:bg-red-50 transition-all duration-200 hover:scale-105">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button className="p-2 text-black hover:text-red-600 border border-black bg-white hover:bg-red-200 transition-all duration-200 hover:scale-105 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
             </svg>
           </button>
         </div>
       </div>
+
+      {/* User Info Modal */}
+      {showUserInfo && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white border-2 border-black w-full max-w-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b-2 border-black bg-blue-200 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-black font-mono">USER INFO</h3>
+                <button 
+                  onClick={handleCloseUserInfo}
+                  className="text-black hover:text-red-600 p-1 border border-black bg-white hover:bg-red-200 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6 flex-1 overflow-y-auto">
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 overflow-hidden">
+                  {selectedUser?.avatarUrl ? (
+                    <img 
+                      src={selectedUser.avatarUrl} 
+                      alt={selectedUser.displayName || selectedUser.username} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    selectedUser?.displayName?.[0]?.toUpperCase() || 
+                    selectedUser?.username?.[0]?.toUpperCase() || 
+                    'U'
+                  )}
+                </div>
+                <h4 className="text-xl font-bold text-black font-mono mb-2">
+                  {selectedUser?.displayName || selectedUser?.username || 'Unknown User'}
+                </h4>
+                {selectedUser?.isVerified && (
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="w-4 h-4 bg-green-500 border border-black"></div>
+                    <span className="text-sm text-green-600 font-mono font-bold">VERIFIED</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                <div className="bg-blue-100 border-2 border-black p-4">
+                  <h5 className="font-bold text-black font-mono mb-2">USERNAME</h5>
+                  <p className="text-black font-mono">{selectedUser?.username || 'Not set'}</p>
+                </div>
+                
+                <div className="bg-blue-100 border-2 border-black p-4">
+                  <h5 className="font-bold text-black font-mono mb-2">DISPLAY NAME</h5>
+                  <p className="text-black font-mono">{selectedUser?.displayName || 'Not set'}</p>
+                </div>
+                
+                {selectedUser?.walletAddress && (
+                  <div className="bg-blue-100 border-2 border-black p-4">
+                    <h5 className="font-bold text-black font-mono mb-2">WALLET ADDRESS</h5>
+                    <p className="text-black font-mono text-xs break-all">{selectedUser.walletAddress}</p>
+                  </div>
+                )}
+                
+                <div className="bg-blue-100 border-2 border-black p-4">
+                  <h5 className="font-bold text-black font-mono mb-2">STATUS</h5>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 border border-black"></div>
+                    <span className="text-black font-mono">ONLINE</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 border-t-2 border-black bg-gray-100 flex-shrink-0">
+              <div className="flex gap-3">
+                {selectedUser?.id !== currentUser?.id && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        // Find existing DM channel with this user
+                        const existingChannel = channels.find(channel => 
+                          channel.type === 'dm' && 
+                          channel.members?.some((member: any) => member.userId === selectedUser.id)
+                        );
+                        
+                        if (existingChannel) {
+                          // Open existing DM
+                          handleChannelSelect(existingChannel.id);
+                        } else {
+                          // Create new DM channel
+                          const { apiFetch } = await import('@/lib/api');
+                          const response = await apiFetch('/chat/channels', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              type: 'dm',
+                              name: `DM with ${selectedUser.displayName || selectedUser.username}`,
+                              memberIds: [selectedUser.id]
+                            })
+                          });
+                          
+                          if (response.ok) {
+                            const newChannel = await response.json();
+                            handleChannelSelect(newChannel.id);
+                          } else {
+                            console.error('Failed to create DM channel');
+                          }
+                        }
+                        handleCloseUserInfo();
+                      } catch (error) {
+                        console.error('Error starting DM:', error);
+                      }
+                    }}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors font-mono"
+                  >
+                    START DM
+                  </button>
+                )}
+                <button
+                  onClick={handleCloseUserInfo}
+                  className={`${selectedUser?.id !== currentUser?.id ? 'flex-1' : 'w-full'} bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors font-mono`}
+                >
+                  CLOSE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

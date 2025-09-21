@@ -2,19 +2,23 @@
 
 import React, { createContext, useContext, useEffect, useCallback, useState, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WebSocketClient } from '@/lib/websocketClient';
+import { WebSocketClient, ConnectionState } from '@/lib/websocketClient';
 import { useChatStore } from '@/stores/chatStore';
 import { ClientEvent, ServerEvent, SERVER_EVENTS } from '@/types/events';
+import { useToastNotifications } from '@/components/Toast';
 
 type EventHandler = (payload: any) => void;
 
 interface WebSocketContextType {
   isConnected: boolean;
+  isConnecting: boolean;
+  connectionState: ConnectionState;
   sendMessage: (event: ClientEvent, payload: any) => void;
   on: (event: ServerEvent, handler: EventHandler) => void;
   off: (event: ServerEvent, handler: EventHandler) => void;
   reconnect: () => void;
   connectIfAuthenticated: () => Promise<void>;
+  getConnectionMetrics: () => any;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -35,8 +39,17 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const { connected, publicKey } = useWallet();
   const clientRef = useRef<WebSocketClient | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionState, setConnectionState] = useState<ConnectionState>({
+    isConnected: false,
+    isConnecting: false,
+    reconnectAttempts: 0,
+    lastConnectedAt: null,
+    lastError: null
+  });
   const isConnectingRef = useRef(false);
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const toast = useToastNotifications();
   
   // Use refs to access current values without causing re-renders
   const connectedRef = useRef(connected);
@@ -80,69 +93,74 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }
     
     clientRef.current = new WebSocketClient(getToken);
+    
+    // Listen to connection state changes
+    const unsubscribe = clientRef.current.onConnectionStateChange((state) => {
+      setConnectionState(state);
+      setIsConnected(state.isConnected);
+      setIsConnecting(state.isConnecting);
+      
+      // Show toast notifications for connection changes
+      if (state.isConnected && state.lastConnectedAt) {
+        // toast.connection('Connected to chat server');
+      } else if (state.lastError) {
+        // toast.error('Connection Error', state.lastError);
+      } else if (state.isConnecting) {
+        // toast.info('Connecting...', 'Establishing connection to chat server');
+      }
+    });
+    
     console.log('[WebSocketProvider] 🆕 New WebSocket client created');
-  }, [getToken]);
+  }, [getToken, toast]);
 
   const connectIfAuthenticated = useCallback(async () => {
-    // 🚫 ATOMIC LOCK — Layer4 Tek Protocol allows only ONE connection attempt at a time
+    // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
-      console.log('[WebSocketProvider] ⏸️ Connection already in progress — Layer4 Tek Protocol holding steady');
+      console.log('[WebSocketProvider] ⏸️ Connection already in progress');
       return;
     }
   
-    // ✅ Check if already connected (immediate, no stale state)
+    // Check if already connected
     if (clientRef.current?.isConnected()) {
-      console.log('[WebSocketProvider] ✅ Already connected — Layer4 Tek Protocol engaged');
+      console.log('[WebSocketProvider] ✅ Already connected');
       return;
     }
   
-    // ❌ Check auth using refs (stable, no dependency issues)
+    // Check authentication
     if (!connectedRef.current || !publicKeyRef.current) {
-      console.log('[WebSocketProvider] ❌ Not authenticated — Layer4 Tek Protocol on standby');
+      console.log('[WebSocketProvider] ❌ Not authenticated');
       return;
     }
   
-    console.log('[WebSocketProvider] 🚀 Initiating Layer4 Tek Protocol connection...', {
+    console.log('[WebSocketProvider] 🚀 Initiating connection...', {
       publicKey: publicKeyRef.current.toString(),
       timestamp: new Date().toISOString()
     });
   
-    // 🔒 SET LOCK BEFORE ANY ASYNC OPERATION
     isConnectingRef.current = true;
   
     try {
-      // 🧹 CLEANUP: Disconnect any existing client FIRST
+      // Cleanup existing client
       if (clientRef.current) {
-        console.log('[WebSocketProvider] 🧹 Cleaning up previous WebSocket client — Layer4 Tek Protocol discipline');
+        console.log('[WebSocketProvider] 🧹 Cleaning up previous client');
         clientRef.current.disconnect();
       }
   
-      // 🆕 CREATE: Initialize new client
-      initClient(); // This sets clientRef.current = new WebSocketClient(...)
+      // Initialize new client
+      initClient();
   
-      // 🔄 CONNECT: Only if client was created
+      // Connect if client was created
       if (clientRef.current) {
-        console.log('[WebSocketProvider] 🤝 Attempting WebSocket connection — Layer4 Tek Protocol in motion');
+        console.log('[WebSocketProvider] 🤝 Attempting connection');
         await clientRef.current.connect();
-        
-        // ✅ VERIFY: Sync state immediately after connect
-        const isConnectedNow = clientRef.current.isConnected();
-        setIsConnected(isConnectedNow);
-        
-        if (isConnectedNow) {
-          console.log('[WebSocketProvider] 💪 Layer4 Tek Protocol connection established — holding strong');
-        } else {
-          console.warn('[WebSocketProvider] ⚠️ Connection attempt completed but not connected — Layer4 Tek Protocol holding position');
-        }
       }
     } catch (error) {
-      console.error('[WebSocketProvider] 💥 Connection attempt failed — Layer4 Tek Protocol absorbing shock:', error);
+      console.error('[WebSocketProvider] 💥 Connection failed:', error);
+      toast.error('Connection Failed', 'Failed to connect to chat server');
     } finally {
-      // 🔓 ALWAYS RELEASE LOCK — even on error
       isConnectingRef.current = false;
-      console.log('[WebSocketProvider] 🔓 Connection attempt completed — Layer4 Tek Protocol lock released');
     }
-  }, [initClient]); // ✅ Only depends on initClient — stable across re-renders
+  }, [initClient, toast]);
 
   // Sync isConnected state with client
 // ✅ ADD THIS — Sync connection state IMMEDIATELY and on tab focus
@@ -198,6 +216,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     clientRef.current?.reconnect();
   }, []);
 
+  const getConnectionMetrics = useCallback(() => {
+    return clientRef.current?.getConnectionMetrics() || null;
+  }, []);
+
   // Auto-connect on wallet connect with debounce
   useEffect(() => {
     console.log('[WebSocketProvider] 🔄 Wallet state changed', {
@@ -230,7 +252,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         connectionTimeoutRef.current = null;
       }
     };
-  }, [connected, publicKey, connectIfAuthenticated]); // Keep dependencies but connectIfAuthenticated is now stable
+  }, [connected, publicKey, connectIfAuthenticated]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -246,11 +268,14 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
   const value = {
     isConnected,
+    isConnecting,
+    connectionState,
     sendMessage,
     on,
     off,
     reconnect,
-    connectIfAuthenticated
+    connectIfAuthenticated,
+    getConnectionMetrics
   };
 
   return (

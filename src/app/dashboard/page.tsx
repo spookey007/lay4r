@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { checkAdminAuth, User as AdminUser } from "../../lib/adminAuth";
 import { apiFetch } from "../../lib/api";
 
@@ -153,273 +154,431 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
+      <motion.div 
+        className="min-h-screen flex items-center justify-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div 
+          className="text-xl"
+          animate={{ 
+            scale: [1, 1.1, 1],
+            opacity: [0.5, 1, 0.5]
+          }}
+          transition={{ 
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        >
+          Loading...
+        </motion.div>
+      </motion.div>
     );
   }
 
   if (!user || !user.isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <motion.div 
+        className="min-h-screen flex items-center justify-center"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="text-xl">Access Denied</div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="p-4 md:p-8">
+    <motion.div 
+      className="p-4 md:p-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
+        <motion.div 
+          className="mb-8"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
           <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'LisaStyle', monospace" }}>
             📊 Admin Dashboard
           </h1>
           <p className="text-gray-600">Welcome back, {user.displayName || user.username || "Admin"}!</p>
-        </div>
+        </motion.div>
 
         {/* Navigation Tabs */}
-        <div className="mb-8">
+        <motion.div 
+          className="mb-8"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
+            <nav className="-mb-px flex flex-wrap space-x-2 md:space-x-8">
+              <motion.button
                 onClick={() => setActiveTab('overview')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'overview'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 📈 Overview
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => setActiveTab('users')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'users'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 👥 Users
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => setActiveTab('analytics')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'analytics'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 📊 Analytics
-              </button>
+              </motion.button>
             </nav>
           </div>
-        </div>
+        </motion.div>
 
         {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Users</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats?.totalUsers || 0}</p>
-                    <p className="text-xs text-green-600">+{stats?.newUsersToday || 0} today</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Posts</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats?.totalPosts || 0}</p>
-                    <p className="text-xs text-green-600">+{stats?.postsToday || 0} today</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-                <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Messages</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats?.totalMessages || 0}</p>
-                    <p className="text-xs text-green-600">+{stats?.messagesToday || 0} today</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-                <div className="flex items-center">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Online Users</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats?.onlineUsers || 0}</p>
-                    <p className="text-xs text-blue-600">Active now</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-              <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+        <AnimatePresence mode="wait">
+          {activeTab === 'overview' && (
+            <motion.div
+              key="overview"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+                <motion.div 
+                  className="bg-white border-2 border-[#808080] rounded-lg p-4 md:p-6 shadow-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                >
                   <div className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                    <span className="text-sm">New user registered</span>
+                    <motion.div 
+                      className="p-2 bg-blue-100 rounded-lg"
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                      </svg>
+                    </motion.div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Total Users</p>
+                      <motion.p 
+                        className="text-2xl font-bold text-gray-900"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.5 }}
+                      >
+                        {stats?.totalUsers || 0}
+                      </motion.p>
+                      <p className="text-xs text-green-600">+{stats?.newUsersToday || 0} today</p>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-500">2 minutes ago</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                    <span className="text-sm">New post created</span>
-                  </div>
-                  <span className="text-xs text-gray-500">5 minutes ago</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
-                    <span className="text-sm">New message sent</span>
-                  </div>
-                  <span className="text-xs text-gray-500">8 minutes ago</span>
-                </div>
-                <div className="flex items-center justify-between py-2">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
-                    <span className="text-sm">User logged in</span>
-                  </div>
-                  <span className="text-xs text-gray-500">12 minutes ago</span>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+                </motion.div>
 
-        {activeTab === 'users' && (
-          <div className="bg-white border-2 border-[#808080] rounded-lg shadow-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold">User Management</h3>
-              <p className="text-sm text-gray-600">Manage users, roles, and permissions</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                            {user.username ? user.username.charAt(0).toUpperCase() : user.walletAddress.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium text-gray-900">
-                              {user.displayName || user.username || "Unknown"}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {user.walletAddress.slice(0, 8)}...{user.walletAddress.slice(-8)}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.role === 0 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {user.role === 0 ? 'Admin' : 'User'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.email || 'No email'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.emailVerified ? "Verified" : "Unverified"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                        {user.role === 1 && (
-                          <button 
-                            onClick={() => promoteToAdmin(user.walletAddress)}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                          >
-                            Promote to Admin
-                          </button>
-                        )}
-                        <button className="text-red-600 hover:text-red-900">Ban</button>
-                      </td>
-                    </tr>
+                <motion.div 
+                  className="bg-white border-2 border-[#808080] rounded-lg p-4 md:p-6 shadow-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                >
+                  <div className="flex items-center">
+                    <motion.div 
+                      className="p-2 bg-green-100 rounded-lg"
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </motion.div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Total Posts</p>
+                      <motion.p 
+                        className="text-2xl font-bold text-gray-900"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.6 }}
+                      >
+                        {stats?.totalPosts || 0}
+                      </motion.p>
+                      <p className="text-xs text-green-600">+{stats?.postsToday || 0} today</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                <motion.div 
+                  className="bg-white border-2 border-[#808080] rounded-lg p-4 md:p-6 shadow-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                >
+                  <div className="flex items-center">
+                    <motion.div 
+                      className="p-2 bg-purple-100 rounded-lg"
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                    </motion.div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Total Messages</p>
+                      <motion.p 
+                        className="text-2xl font-bold text-gray-900"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.7 }}
+                      >
+                        {stats?.totalMessages || 0}
+                      </motion.p>
+                      <p className="text-xs text-green-600">+{stats?.messagesToday || 0} today</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                <motion.div 
+                  className="bg-white border-2 border-[#808080] rounded-lg p-4 md:p-6 shadow-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                >
+                  <div className="flex items-center">
+                    <motion.div 
+                      className="p-2 bg-orange-100 rounded-lg"
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </motion.div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Online Users</p>
+                      <motion.p 
+                        className="text-2xl font-bold text-gray-900"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.8 }}
+                      >
+                        {stats?.onlineUsers || 0}
+                      </motion.p>
+                      <p className="text-xs text-blue-600">Active now</p>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Recent Activity */}
+              <motion.div 
+                className="bg-white border-2 border-[#808080] rounded-lg p-4 md:p-6 shadow-lg"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.9 }}
+                whileHover={{ scale: 1.01 }}
+              >
+                <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+                <div className="space-y-4">
+                  {[
+                    { color: "bg-green-500", text: "New user registered", time: "2 minutes ago" },
+                    { color: "bg-blue-500", text: "New post created", time: "5 minutes ago" },
+                    { color: "bg-purple-500", text: "New message sent", time: "8 minutes ago" },
+                    { color: "bg-orange-500", text: "User logged in", time: "12 minutes ago" }
+                  ].map((activity, index) => (
+                    <motion.div 
+                      key={index}
+                      className="flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0"
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 1.0 + index * 0.1 }}
+                    >
+                      <div className="flex items-center">
+                        <motion.div 
+                          className={`w-2 h-2 ${activity.color} rounded-full mr-3`}
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 2, repeat: Infinity, delay: index * 0.5 }}
+                        ></motion.div>
+                        <span className="text-sm">{activity.text}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{activity.time}</span>
+                    </motion.div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
 
-        {activeTab === 'analytics' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-              <h3 className="text-lg font-semibold mb-4">User Growth</h3>
-              <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                <p className="text-gray-500">Chart placeholder - User growth over time</p>
-              </div>
-            </div>
+          {activeTab === 'users' && (
+            <motion.div
+              key="users"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <motion.div 
+                className="bg-white border-2 border-[#808080] rounded-lg shadow-lg overflow-hidden"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <div className="px-4 md:px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold">User Management</h3>
+                  <p className="text-sm text-gray-600">Manage users, roles, and permissions</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email Status</th>
+                        <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.map((user, index) => (
+                        <motion.tr 
+                          key={user.id}
+                          initial={{ x: -20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ duration: 0.3, delay: index * 0.1 }}
+                          whileHover={{ backgroundColor: "#f9fafb" }}
+                        >
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                                {user.username ? user.username.charAt(0).toUpperCase() : user.walletAddress.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="ml-3">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {user.displayName || user.username || "Unknown"}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {user.walletAddress.slice(0, 8)}...{user.walletAddress.slice(-8)}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              user.role === 0 
+                                ? 'bg-red-100 text-red-800' 
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {user.role === 0 ? 'Admin' : 'User'}
+                            </span>
+                          </td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {user.email || 'No email'}
+                          </td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {user.emailVerified ? "Verified" : "Unverified"}
+                          </td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex flex-wrap gap-2">
+                              <motion.button 
+                                className="text-blue-600 hover:text-blue-900"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                Edit
+                              </motion.button>
+                              {user.role === 1 && (
+                                <motion.button 
+                                  onClick={() => promoteToAdmin(user.walletAddress)}
+                                  className="text-green-600 hover:text-green-900"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  Promote to Admin
+                                </motion.button>
+                              )}
+                              <motion.button 
+                                className="text-red-600 hover:text-red-900"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                Ban
+                              </motion.button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
 
-            <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-              <h3 className="text-lg font-semibold mb-4">Activity Overview</h3>
-              <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                <p className="text-gray-500">Chart placeholder - Activity metrics</p>
+          {activeTab === 'analytics' && (
+            <motion.div
+              key="analytics"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
+                {[
+                  { title: "User Growth", description: "Chart placeholder - User growth over time" },
+                  { title: "Activity Overview", description: "Chart placeholder - Activity metrics" },
+                  { title: "Post Engagement", description: "Chart placeholder - Post engagement metrics" },
+                  { title: "Message Volume", description: "Chart placeholder - Message volume over time" }
+                ].map((chart, index) => (
+                  <motion.div 
+                    key={index}
+                    className="bg-white border-2 border-[#808080] rounded-lg p-4 md:p-6 shadow-lg"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
+                  >
+                    <h3 className="text-lg font-semibold mb-4">{chart.title}</h3>
+                    <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <p className="text-gray-500">{chart.description}</p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
-            </div>
-
-            <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-              <h3 className="text-lg font-semibold mb-4">Post Engagement</h3>
-              <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                <p className="text-gray-500">Chart placeholder - Post engagement metrics</p>
-              </div>
-            </div>
-
-            <div className="bg-white border-2 border-[#808080] rounded-lg p-6 shadow-lg">
-              <h3 className="text-lg font-semibold mb-4">Message Volume</h3>
-              <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                <p className="text-gray-500">Chart placeholder - Message volume over time</p>
-              </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }

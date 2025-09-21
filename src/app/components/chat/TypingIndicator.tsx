@@ -21,13 +21,13 @@ export default function TypingIndicator({ users }: TypingIndicatorProps) {
   };
 
   return (
-    <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 italic">
+    <div className="flex items-center space-x-2 text-sm text-black bg-yellow-300 px-3 py-1 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
       <div className="flex space-x-1">
-        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+        <div className="w-2 h-2 bg-black animate-bounce"></div>
+        <div className="w-2 h-2 bg-black animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+        <div className="w-2 h-2 bg-black animate-bounce" style={{ animationDelay: '0.2s' }}></div>
       </div>
-      <span>{getTypingText()}</span>
+      <span className="font-bold font-mono text-black">{getTypingText()}</span>
     </div>
   );
 }

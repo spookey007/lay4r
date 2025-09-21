@@ -5,32 +5,60 @@ import { ClientEvent, ServerEvent } from '@/types/events';
 
 export type EventHandler = (payload: any) => void;
 
+export interface ConnectionState {
+  isConnected: boolean;
+  isConnecting: boolean;
+  reconnectAttempts: number;
+  lastConnectedAt: Date | null;
+  lastError: string | null;
+}
+
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 10; // Layer4 never surrenders
+  private readonly maxReconnectAttempts = 15; // Increased for better reliability
   private readonly baseDelay = 1000;
-  private readonly maxDelay = 30000; // Layer4 waits for eternity
+  private readonly maxDelay = 30000;
   private eventHandlers = new Map<ServerEvent, Set<EventHandler>>();
-  private messageQueue: Array<{ event: ClientEvent; payload: any }> = [];
+  private messageQueue: Array<{ event: ClientEvent; payload: any; timestamp: number }> = [];
   private isManuallyDisconnected = false;
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private connectionStateListeners = new Set<(state: ConnectionState) => void>();
   private readonly protocolName = "LAYER4_TEK";
+  private lastPongReceived = 0;
+  private pongTimeout: NodeJS.Timeout | null = null;
+  private connectionState: ConnectionState = {
+    isConnected: false,
+    isConnecting: false,
+    reconnectAttempts: 0,
+    lastConnectedAt: null,
+    lastError: null
+  };
 
   private getToken: () => Promise<string | null>;
 
   constructor(getToken: () => Promise<string | null>) {
     this.getToken = getToken;
-    console.log(`[${this.protocolName}] Initializing Layer4 Tek Protocol — crafted by retards for retards.`);
+    console.log(`[${this.protocolName}] Initializing enhanced WebSocket client with improved reliability`);
   }
 
   async connect(): Promise<void> {
-    // 🛡️ LAYER4 TEK PROTOCOL: PREVENT CONNECTION STORMS
-    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
-      console.log(`[${this.protocolName}] 🔄 Connection already active — Layer4 Tek Protocol holding strong. No panic selling.`);
+    // Prevent multiple simultaneous connection attempts
+    if (this.connectionState.isConnecting) {
+      console.log(`[${this.protocolName}] 🔄 Connection already in progress, skipping duplicate attempt`);
       return;
     }
+
+    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+      console.log(`[${this.protocolName}] 🔄 Connection already active, state: ${this.ws.readyState}`);
+      return;
+    }
+
+    this.updateConnectionState({
+      isConnecting: true,
+      lastError: null
+    });
 
     console.log(`[${this.protocolName}] 🔄 Connection attempt #${this.reconnectAttempts + 1}`, {
       timestamp: new Date().toISOString(),
@@ -39,14 +67,20 @@ export class WebSocketClient {
     });
 
     if (this.isManuallyDisconnected) {
-      console.log(`[${this.protocolName}] ⛔ Manual disconnect active — Layer4 Tek Protocol in standby. Holding position.`);
+      console.log(`[${this.protocolName}] ⛔ Manual disconnect active, skipping connection`);
+      this.updateConnectionState({ isConnecting: false });
       return;
     }
 
     try {
       const token = await this.getToken();
       if (!token) {
-        console.warn(`[${this.protocolName}] 🔑 No auth token — Layer4 Tek Protocol cannot proceed without commitment.`);
+        const error = 'No authentication token available';
+        console.warn(`[${this.protocolName}] 🔑 ${error}`);
+        this.updateConnectionState({ 
+          isConnecting: false, 
+          lastError: error 
+        });
         return;
       }
 
@@ -55,28 +89,41 @@ export class WebSocketClient {
 
       // Cleanup previous connection if exists
       if (this.ws) {
-        console.log(`[${this.protocolName}] 🧹 Cleaning up previous connection before establishing new one.`);
+        console.log(`[${this.protocolName}] 🧹 Cleaning up previous connection`);
         this.disconnect(false);
       }
 
-      console.log(`[${this.protocolName}] 🚀 Establishing Layer4 Tek Protocol connection to ${socketUrl}...`);
+      console.log(`[${this.protocolName}] 🚀 Establishing connection to ${socketUrl}...`);
 
       this.ws = new WebSocket(wsUrl);
       this.ws.binaryType = 'arraybuffer';
 
       this.ws.onopen = () => {
-        console.log(`[${this.protocolName}] 💪 UNBREAKABLE CONNECTION ESTABLISHED — Layer4 Tek Protocol engaged.`, {
+        console.log(`[${this.protocolName}] ✅ Connection established`, {
           url: this.ws?.url,
-          timestamp: new Date().toISOString(),
-          protocol: this.protocolName
+          timestamp: new Date().toISOString()
         });
+        
         this.reconnectAttempts = 0;
+        this.lastPongReceived = Date.now();
+        this.updateConnectionState({
+          isConnected: true,
+          isConnecting: false,
+          lastConnectedAt: new Date(),
+          lastError: null
+        });
+        
         this.flushQueue();
         this.startHeartbeat();
         this.isManuallyDisconnected = false;
 
-        // Layer4 Tek Handshake
-        this.sendMessage('PING', { protocol: this.protocolName, version: '2.0', message: 'HOLDING STRONG' });
+        // Send initial ping
+        this.sendMessage('PING', { 
+          protocol: this.protocolName, 
+          version: '2.0', 
+          message: 'HOLDING STRONG',
+          timestamp: Date.now()
+        });
       };
 
       this.ws.onmessage = (event) => {
@@ -84,8 +131,20 @@ export class WebSocketClient {
           const data = new Uint8Array(event.data);
           const [eventType, payload, timestamp] = msgpack.decode(data) as [ServerEvent, any, number];
 
+          // Handle pong responses
+          if (eventType === 'PONG') {
+            this.lastPongReceived = Date.now();
+            if (this.pongTimeout) {
+              clearTimeout(this.pongTimeout);
+              this.pongTimeout = null;
+            }
+            console.log(`[${this.protocolName}] ❤️ Heartbeat acknowledged`);
+            return;
+          }
+
           if (eventType === 'ERROR') {
-            console.error(`[${this.protocolName}] ❌ SERVER ERROR — Layer4 Tek Protocol absorbing shock:`, payload.message);
+            console.error(`[${this.protocolName}] ❌ Server error:`, payload.message);
+            this.updateConnectionState({ lastError: payload.message });
             return;
           }
 
@@ -95,34 +154,53 @@ export class WebSocketClient {
               try {
                 handler(payload);
               } catch (err) {
-                console.error(`[${this.protocolName}] Handler error for ${eventType} — Layer4 Tek Protocol holding steady:`, err);
+                console.error(`[${this.protocolName}] Handler error for ${eventType}:`, err);
               }
             });
           }
         } catch (err) {
-          console.error(`[${this.protocolName}] Message decode error — Layer4 Tek Protocol resilience activated:`, err);
+          console.error(`[${this.protocolName}] Message decode error:`, err);
         }
       };
 
       this.ws.onclose = (event) => {
-        console.log(`[${this.protocolName}] 🔌 Connection severed (code: ${event.code}, reason: "${event.reason || 'unknown'}") — Layer4 Tek Protocol preparing to hold again.`, {
+        console.log(`[${this.protocolName}] 🔌 Connection closed`, {
+          code: event.code,
+          reason: event.reason || 'unknown',
           wasClean: event.wasClean,
-          timestamp: new Date().toISOString(),
-          attempt: this.reconnectAttempts + 1
+          timestamp: new Date().toISOString()
         });
 
         this.ws = null;
+        this.updateConnectionState({ 
+          isConnected: false, 
+          isConnecting: false 
+        });
 
-        // Disable auto-reconnect to prevent infinite loops
-        console.log(`[${this.protocolName}] 🔌 Connection closed - auto-reconnect disabled to prevent loops`);
+        // Auto-reconnect with exponential backoff
+        if (!this.isManuallyDisconnected && this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.scheduleReconnect();
+        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+          console.log(`[${this.protocolName}] ⛔ Max reconnection attempts reached`);
+          this.updateConnectionState({ 
+            lastError: 'Max reconnection attempts reached' 
+          });
+        }
       };
 
       this.ws.onerror = (error) => {
-        console.error(`[${this.protocolName}] 💥 WebSocket error — Layer4 Tek Protocol absorbing shock and holding strong:`, error);
+        console.error(`[${this.protocolName}] 💥 WebSocket error:`, error);
+        this.updateConnectionState({ 
+          lastError: 'WebSocket connection error' 
+        });
       };
 
     } catch (error) {
-      console.error(`[${this.protocolName}] 💥 Connection setup failed — Layer4 Tek Protocol holding position. No panic. No selling.`, error);
+      console.error(`[${this.protocolName}] 💥 Connection setup failed:`, error);
+      this.updateConnectionState({ 
+        isConnecting: false, 
+        lastError: error instanceof Error ? error.message : 'Connection setup failed' 
+      });
     }
   }
 
@@ -135,26 +213,81 @@ export class WebSocketClient {
           protocol: this.protocolName,
           mantra: 'HOLDING STRONG'
         });
+        
+        // Set timeout for pong response
+        this.pongTimeout = setTimeout(() => {
+          console.warn(`[${this.protocolName}] ⚠️ Heartbeat timeout - no pong received`);
+          this.ws?.close(1000, 'Heartbeat timeout');
+        }, 10000); // 10 second timeout
       }
-    }, 30000); // Layer4 pulse every 30s
-    console.log(`[${this.protocolName}] ❤️ Layer4 Tek Protocol heartbeat activated — stability in motion.`);
+    }, 30000); // Heartbeat every 30s
+    console.log(`[${this.protocolName}] ❤️ Heartbeat activated`);
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+
+    const delay = Math.min(this.baseDelay * Math.pow(2, this.reconnectAttempts), this.maxDelay);
+    this.reconnectAttempts++;
+
+    console.log(`[${this.protocolName}] 🔄 Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
+
+    this.reconnectTimeout = setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  private updateConnectionState(updates: Partial<ConnectionState>) {
+    this.connectionState = { ...this.connectionState, ...updates };
+    this.connectionStateListeners.forEach(listener => {
+      try {
+        listener(this.connectionState);
+      } catch (err) {
+        console.error(`[${this.protocolName}] Connection state listener error:`, err);
+      }
+    });
+  }
+
+  public onConnectionStateChange(listener: (state: ConnectionState) => void) {
+    this.connectionStateListeners.add(listener);
+    return () => this.connectionStateListeners.delete(listener);
+  }
+
+  public getConnectionState(): ConnectionState {
+    return { ...this.connectionState };
   }
 
   disconnect(manual = true): void {
     this.isManuallyDisconnected = manual;
+    
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
+    
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
+    
+    if (this.pongTimeout) {
+      clearTimeout(this.pongTimeout);
+      this.pongTimeout = null;
+    }
+    
     if (this.ws) {
-      this.ws.close(1000, 'Layer4 Tek Protocol manual disconnect — holding position');
+      this.ws.close(1000, manual ? 'Manual disconnect' : 'Reconnecting');
       this.ws = null;
     }
-    console.log(`[${this.protocolName}] ⛔ Connection manually severed — Layer4 Tek Protocol in standby. Still holding.`);
+    
+    this.updateConnectionState({
+      isConnected: false,
+      isConnecting: false
+    });
+    
+    console.log(`[${this.protocolName}] ⛔ Connection closed (manual: ${manual})`);
   }
 
   sendMessage(event: ClientEvent, payload: any): void {
@@ -162,20 +295,27 @@ export class WebSocketClient {
       try {
         const message = msgpack.encode([event, payload]);
         this.ws.send(message);
+        console.log(`[${this.protocolName}] 📤 Sent ${event}`);
       } catch (error) {
-        console.error(`[${this.protocolName}] Send error for ${event} — Layer4 Tek Protocol queuing for later delivery:`, error);
-        this.messageQueue.push({ event, payload }); // Never lose a message — only hold it
+        console.error(`[${this.protocolName}] Send error for ${event}:`, error);
+        this.messageQueue.push({ event, payload, timestamp: Date.now() });
       }
     } else {
-      this.messageQueue.push({ event, payload });
-      console.warn(`[${this.protocolName}] ⏳ Queued ${event} — awaiting Layer4 Tek Protocol stability. No selling allowed.`);
+      this.messageQueue.push({ event, payload, timestamp: Date.now() });
+      console.warn(`[${this.protocolName}] ⏳ Queued ${event} - connection not ready`);
     }
   }
 
   private flushQueue() {
     if (this.messageQueue.length === 0) return;
 
-    console.log(`[${this.protocolName}] 🚀 Flushing ${this.messageQueue.length} queued messages — Layer4 Tek Protocol commitment in action. Holding strong.`);
+    console.log(`[${this.protocolName}] 🚀 Flushing ${this.messageQueue.length} queued messages`);
+    
+    // Filter out old messages (older than 5 minutes)
+    const now = Date.now();
+    const validMessages = this.messageQueue.filter(msg => now - msg.timestamp < 300000);
+    this.messageQueue = validMessages;
+    
     while (this.messageQueue.length > 0) {
       const msg = this.messageQueue.shift()!;
       this.sendMessage(msg.event, msg.payload);
@@ -187,16 +327,16 @@ export class WebSocketClient {
       this.eventHandlers.set(event, new Set());
     }
     this.eventHandlers.get(event)!.add(handler);
-    console.log(`[${this.protocolName}] 🎯 Registered handler for ${event} — Layer4 Tek Protocol ready.`);
+    console.log(`[${this.protocolName}] 🎯 Registered handler for ${event}`);
   }
 
   off(event: ServerEvent, handler: EventHandler): void {
     this.eventHandlers.get(event)?.delete(handler);
-    console.log(`[${this.protocolName}] 🚫 Removed handler for ${event} — Layer4 Tek Protocol adjusted.`);
+    console.log(`[${this.protocolName}] 🚫 Removed handler for ${event}`);
   }
 
   reconnect(): void {
-    console.log(`[${this.protocolName}] 🔄 Manual reconnect initiated — Layer4 Tek Protocol re-engaging. No panic. Only holding.`);
+    console.log(`[${this.protocolName}] 🔄 Manual reconnect initiated`);
     this.disconnect(false);
     this.reconnectAttempts = 0;
     this.connect();
@@ -204,5 +344,16 @@ export class WebSocketClient {
 
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  // Get connection quality metrics
+  getConnectionMetrics() {
+    return {
+      isConnected: this.isConnected(),
+      reconnectAttempts: this.reconnectAttempts,
+      lastPongReceived: this.lastPongReceived,
+      queuedMessages: this.messageQueue.length,
+      connectionState: this.connectionState
+    };
   }
 }

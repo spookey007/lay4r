@@ -102,7 +102,7 @@ export default function MessageList({
         try {
           messageData = JSON.parse(payload);
         } catch (error) {
-
+          console.error('Failed to parse message payload:', error);
           return;
         }
       }
@@ -448,9 +448,9 @@ export default function MessageList({
         {/* Loading indicator for older messages */}
         {isLoadingMore && (
           <div className="text-center py-4">
-            <div className="inline-flex items-center gap-2 text-sm text-gray-500 bg-white rounded-full px-4 py-2 shadow-sm">
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-              Loading older messages...
+            <div className="inline-flex items-center gap-2 text-sm text-black bg-blue-100 border-2 border-black px-4 py-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-mono font-bold">
+              <div className="w-4 h-4 border-2 border-black border-t-white animate-spin"></div>
+              LOADING OLDER MESSAGES...
             </div>
           </div>
         )}
@@ -458,45 +458,45 @@ export default function MessageList({
         {/* Loading indicator when switching chats */}
         {switchingChat && (
           <div className="flex justify-center items-center py-12">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
-              <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-sm text-gray-600 font-medium">Loading messages...</p>
-              <p className="text-xs text-gray-400 mt-2">Debug: switchingChat=true, messages={currentMessages.length}</p>
+            <div className="bg-white border-2 border-black p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <div className="w-8 h-8 border-2 border-black border-t-white animate-spin mx-auto mb-4"></div>
+              <p className="text-sm text-black font-mono font-bold">LOADING MESSAGES...</p>
+              {/* <p className="text-xs text-gray-400 mt-2">Debug: switchingChat=true, messages={currentMessages.length}</p> */}
             </div>
           </div>
         )}
         
         {/* Welcome message for L4 Community Group */}
         {!switchingChat && channelId === 'cmfhetm9i0000eqxogha9gi9l' && currentMessages.length === 0 && (
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 text-center border border-blue-100 mb-6">
+          <div className="bg-blue-100 border-2 border-black p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-6">
             <div className="text-5xl mb-4">🎉</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Welcome to L4 Community Group!</h3>
-            <p className="text-gray-600 mb-6 leading-relaxed">
-              This is where the Layer4 community comes together to discuss the future of financial stability, 
-              share insights, and build connections in the DeFi space.
+            <h3 className="text-xl font-bold text-black mb-3 font-mono">WELCOME TO L4 COMMUNITY GROUP!</h3>
+            <p className="text-black mb-6 leading-relaxed font-mono">
+              THIS IS WHERE THE LAYER4 COMMUNITY COMES TOGETHER TO DISCUSS THE FUTURE OF FINANCIAL STABILITY, 
+              SHARE INSIGHTS, AND BUILD CONNECTIONS IN THE DEFI SPACE.
             </p>
-            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              <div className="text-sm text-gray-700 text-left">
-                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <div className="bg-white border-2 border-black p-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              <div className="text-sm text-black text-left font-mono">
+                <h4 className="font-semibold text-black mb-3 flex items-center gap-2">
                   <span className="text-blue-500">📋</span>
-                  Community Guidelines
+                  COMMUNITY GUIDELINES
                 </h4>
                 <ul className="space-y-2">
                   <li className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">✓</span>
-                    Be respectful and constructive in all discussions
+                    BE RESPECTFUL AND CONSTRUCTIVE IN ALL DISCUSSIONS
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">✓</span>
-                    Share valuable insights and market analysis
+                    SHARE VALUABLE INSIGHTS AND MARKET ANALYSIS
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">✓</span>
-                    Ask questions and help fellow community members
+                    ASK QUESTIONS AND HELP FELLOW COMMUNITY MEMBERS
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">✓</span>
-                    Stay focused on Layer4 and DeFi topics
+                    STAY FOCUSED ON LAYER4 AND DEFI TOPICS
                   </li>
                 </ul>
               </div>
@@ -532,14 +532,14 @@ export default function MessageList({
         {/* Empty state */}
         {!switchingChat && currentMessages.length === 0 && channelId !== 'cmfhetm9i0000eqxogha9gi9l' && (
           <div className="flex justify-center items-center py-12">
-            <div className="bg-white rounded-2xl p-10 text-center border border-gray-200 shadow-sm max-w-md">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white p-10 text-center border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-w-md">
+              <div className="w-20 h-20 bg-blue-100 border-2 border-black flex items-center justify-center mx-auto mb-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <svg className="w-10 h-10 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">No messages yet</h3>
-              <p className="text-gray-500 leading-relaxed">Be the first to start the conversation in this channel!</p>
+              <h3 className="text-xl font-bold text-black mb-3 font-mono">NO MESSAGES YET</h3>
+              <p className="text-black leading-relaxed font-mono">BE THE FIRST TO START THE CONVERSATION IN THIS CHANNEL!</p>
             </div>
           </div>
         )}
@@ -547,7 +547,7 @@ export default function MessageList({
         {/* Typing indicator */}
         {typingUsers.length > 0 && (
           <div className="flex justify-start">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-4 py-3 max-w-xs">
+            <div className="bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] px-4 py-3 max-w-xs">
               <TypingIndicator users={typingUsers} />
             </div>
           </div>

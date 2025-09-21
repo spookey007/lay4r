@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/sega.css";
 
 /* Mobile optimizations for chat widget */
 @media (max-width: 768px) {
@@ -211,8 +212,8 @@ body {
 /* Lisa/Mac OS Classic UI with Modern Touches */
 .lisa-window {
   background: #f0f0f0;
-  border: 2px solid #000;
-  border-radius: 8px;
+  /* border: 2px solid #000;
+  border-radius: 8px; */
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3), 8px 8px 16px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   position: relative;

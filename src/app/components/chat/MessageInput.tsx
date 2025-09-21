@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useWebSocket, useChatEvents } from '@/contexts/WebSocketContext';
 import { useChatStore } from '@/stores/chatStore';
+import { useToastNotifications } from '@/components/Toast';
 
 interface MessageInputProps {
   channelId: string | null;
@@ -28,8 +29,8 @@ export default function MessageInput({
 
   const { sendChatMessage, startTyping, stopTyping } = useChatEvents();
   const { getCurrentChannel, currentChannelId, channels, setCurrentChannel, setMessages, addMessage, removeMessage, currentUser } = useChatStore();
-  const { isConnected } = useWebSocket();
-  console.log('isConnected', isConnected);
+  const { isConnected, isConnecting } = useWebSocket();
+  const toast = useToastNotifications();
   const channel = getCurrentChannel();
   
   // Debug current user and wait for it to be loaded
@@ -54,7 +55,8 @@ export default function MessageInput({
         };
         
         // Retry after 2 seconds
-        setTimeout(reloadUser, 2000);
+        const timeoutId = setTimeout(reloadUser, 2000);
+        return () => clearTimeout(timeoutId);
       }
     }
   }, [currentUser]);
@@ -145,13 +147,17 @@ export default function MessageInput({
     }
     
     if (!isConnected) {
-      alert('Still connecting... Please wait a moment and try again.');
+      if (isConnecting) {
+        toast.warning('Connecting...', 'Please wait for the connection to be established');
+      } else {
+        toast.error('Not Connected', 'Please check your connection and try again');
+      }
       return;
     }
 
     // Check if current user is available
     if (!currentUser) {
-      alert('Please refresh the page to reload your session.');
+      toast.error('Session Error', 'Please refresh the page to reload your session');
       return;
     }
 
@@ -205,6 +211,7 @@ export default function MessageInput({
       console.log(`✅ Message sent successfully in ${endTime - startTime}ms`);
     } catch (error) {
       console.error('❌ Error sending message via WebSocket:', error);
+      toast.error('Send Failed', 'Failed to send message. Please try again.');
       // Don't remove the message, just log the error
     }
     
@@ -262,6 +269,8 @@ export default function MessageInput({
       const uploadedFiles = await Promise.all(uploadPromises);
       setAttachments(prev => [...prev, ...uploadedFiles]);
     } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Upload Failed', 'Failed to upload file. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -313,25 +322,25 @@ export default function MessageInput({
   }
 
   return (
-    <div className="bg-white border-t border-gray-200">
+    <div className="bg-gradient-to-r from-yellow-300 to-orange-400 border-t-4 border-black shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
       {/* Reply indicator */}
       {replyToMessage && (
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+        <div className="px-4 py-2 bg-green-300 border-b-2 border-black">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <div className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-2">
+              <div className="text-xs font-bold text-black mb-1 flex items-center gap-2 font-mono">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                 </svg>
-                Replying to {replyToMessage.author?.username || 'Unknown'}
+                REPLYING TO {replyToMessage.author?.username || 'UNKNOWN'}
               </div>
-              <div className="text-sm text-gray-800 truncate bg-white rounded-lg px-3 py-2 border border-gray-200">
+              <div className="text-sm text-black truncate bg-white px-3 py-2 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-mono">
                 {replyToMessage.content}
               </div>
             </div>
             <button
               onClick={onClearReply}
-              className="ml-3 text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="ml-3 text-black hover:text-red-600 p-1 hover:bg-red-300 transition-all duration-200 hover:scale-110 border border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
               aria-label="Clear reply"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -344,25 +353,25 @@ export default function MessageInput({
 
       {/* Attachments preview */}
       {attachments.length > 0 && (
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-2">
+        <div className="px-4 py-2 bg-cyan-300 border-b-2 border-black">
+          <div className="text-xs font-bold text-black mb-2 flex items-center gap-2 font-mono">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
             </svg>
-            {attachments.length} attachment{attachments.length > 1 ? 's' : ''}
+            {attachments.length} ATTACHMENT{attachments.length > 1 ? 'S' : ''}
           </div>
           <div className="flex flex-wrap gap-2">
             {attachments.map((attachment, index) => (
-              <div key={index} className="relative bg-white rounded-lg border border-gray-200 p-3 min-w-0">
-                <div className="text-xs truncate max-w-[120px] pr-6 font-medium">
+              <div key={index} className="relative bg-white border border-black p-2 min-w-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <div className="text-xs truncate max-w-[120px] pr-6 font-bold font-mono text-black">
                   {attachment.filename}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-gray-600 mt-1 font-mono">
                   {(attachment.size / 1024).toFixed(1)} KB
                 </div>
                 <button
                   onClick={() => removeAttachment(index)}
-                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs hover:bg-red-600 flex items-center justify-center transition-colors"
+                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-sm hover:bg-red-600 flex items-center justify-center transition-all duration-200 hover:scale-110 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
                   aria-label="Remove attachment"
                 >
                   ×
@@ -373,14 +382,14 @@ export default function MessageInput({
         </div>
       )}
 
-      <div className="px-6 py-4">
+      <div className="px-4 py-3">
         {/* Quick emoji reactions */}
         <div className="flex flex-wrap gap-2 mb-3">
           {quickEmojis.map((emoji) => (
             <button
               key={emoji}
               onClick={() => handleEmojiSelect(emoji)}
-              className="text-lg p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="text-lg p-2 hover:bg-yellow-200 transition-all duration-200 hover:scale-110 border border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
               title={`Add ${emoji}`}
             >
               {emoji}
@@ -388,34 +397,34 @@ export default function MessageInput({
           ))}
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1"
+            className="text-sm px-3 py-2 bg-cyan-300 hover:bg-cyan-400 transition-all duration-200 flex items-center gap-2 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:scale-105 font-bold font-mono"
           >
             <span>😀</span>
-            <span className="text-xs">More</span>
+            <span className="text-xs">MORE</span>
           </button>
         </div>
 
         {/* Emoji picker */}
         {showEmojiPicker && (
-          <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-4 mb-4">
+          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 mb-3">
             <div className="grid grid-cols-8 gap-2">
               {['😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒'].map((emoji) => (
                 <button
                   key={emoji}
                   onClick={() => handleEmojiSelect(emoji)}
-                  className="w-10 h-10 text-lg hover:bg-gray-100 rounded-lg transition-colors"
+                  className="w-10 h-10 text-lg hover:bg-yellow-200 transition-all duration-200 hover:scale-110 border border-black bg-white shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:shadow-[0px_0px_0px_0px_rgba(0,0,0,1)]"
                 >
                   {emoji}
                 </button>
               ))}
             </div>
-            <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
-              <span className="text-xs text-gray-500">Click to add emoji</span>
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-black">
+              <span className="text-xs text-black font-bold font-mono">CLICK TO ADD EMOJI</span>
               <button
                 onClick={() => setShowEmojiPicker(false)}
-                className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                className="text-xs text-black hover:text-red-600 font-bold font-mono bg-red-300 hover:bg-red-400 px-3 py-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
               >
-                Close
+                CLOSE
               </button>
             </div>
           </div>
@@ -429,8 +438,8 @@ export default function MessageInput({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`type your message...`}
-              className="w-full px-4 py-3 pr-20 border border-gray-300 rounded-2xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm placeholder-gray-500"
+              placeholder={`TYPE YOUR MESSAGE...`}
+              className="w-full px-4 py-3 pr-20 border-2 border-black bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-500 resize-none text-sm placeholder-gray-600 font-mono font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
               style={{ 
                 minHeight: '48px',
                 maxHeight: '120px'
@@ -448,23 +457,23 @@ export default function MessageInput({
                 accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
               />
               {!isConnected && (
-                <div className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                  <span>Connecting...</span>
+                <div className="flex items-center gap-1 text-xs text-black bg-red-300 px-2 py-1 border border-black font-bold font-mono shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+                  <div className="w-2 h-2 bg-black animate-pulse"></div>
+                  <span>{isConnecting ? 'CONNECTING...' : 'DISCONNECTED'}</span>
                 </div>
               )}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50 p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                className="text-black hover:text-blue-600 disabled:opacity-50 p-1 hover:bg-blue-200 transition-all duration-200 hover:scale-110 border border-black bg-white shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
                 title="Upload files"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                 </svg>
               </button>
-              <span className="text-xs text-gray-400 font-mono">
+              <span className="text-xs text-black font-mono font-bold bg-yellow-300 px-2 py-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
                 {content.length}/{maxLength}
               </span>
             </div>
@@ -472,36 +481,41 @@ export default function MessageInput({
           <button
             type="submit"
             disabled={(!content.trim() && attachments.length === 0) || isUploading}
-            className={`px-6 py-3 rounded-2xl transition-all duration-200 flex items-center justify-center font-medium min-w-[60px] h-[48px] flex-shrink-0 z-10 relative ${
+            className={`px-6 py-3 transition-all duration-200 flex items-center justify-center font-bold min-w-[70px] h-[48px] flex-shrink-0 z-10 relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
               !isConnected 
-                ? 'bg-orange-500 text-white cursor-wait' 
+                ? 'bg-red-500 text-white cursor-wait hover:scale-105' 
                 : (!content.trim() && attachments.length === 0) || isUploading
                   ? 'bg-gray-400 text-white cursor-not-allowed opacity-75'
-                  : 'bg-black hover:bg-gray-800 text-white'
+                  : 'bg-green-400 hover:bg-green-500 text-black hover:scale-105 font-mono'
             }`}
-            title={!isConnected ? "Connecting..." : (!content.trim() && attachments.length === 0) ? "Type a message" : "Send message (Enter)"}
+            title={!isConnected ? (isConnecting ? "Connecting..." : "Disconnected") : (!content.trim() && attachments.length === 0) ? "Type a message" : "Send message (Enter)"}
           >
             {isUploading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-5 h-5 border-2 border-black border-t-transparent animate-spin"></div>
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
+              <div className="flex items-center gap-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                <span className="text-sm font-mono">SEND</span>
+              </div>
             )}
           </button>
         </form>
 
         {/* Channel info */}
-        <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
-          <span className="flex items-center gap-1">
-            <span>{channel?.type === 'text-group' ? '🏠' : '#'}</span>
-            <span className="font-medium">{channel?.name}</span>
+        {/* <div className="mt-3 text-xs text-black flex items-center gap-2 font-mono font-bold">
+          <span className="flex items-center gap-1 bg-cyan-300 px-2 py-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+            <span className="text-sm">{channel?.type === 'text-group' ? '🏠' : '#'}</span>
+            <span className="font-bold">{channel?.name}</span>
           </span>
-          <span>•</span>
-          <span>{channel?.members?.length || 0} members</span>
-          <span>•</span>
-          <span>Press Enter to send, Shift+Enter for new line</span>
-        </div>
+          <span className="bg-yellow-300 px-2 py-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+            {channel?.members?.length || 0} MEMBERS
+          </span>
+          <span className="bg-green-300 px-2 py-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+            ENTER TO SEND • SHIFT+ENTER FOR NEW LINE
+          </span>
+        </div> */}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import SolanaStaking from "./components/SolanaStaking";
 import ChatWidget from "./components/ChatWidget";
 
@@ -80,29 +81,53 @@ const fetchTokenData = async () => {
   }, []);
 
   return (
-        <div className="flex flex-col flex-1 py-4" style={{ fontFamily: "'LisaStyle', monospace" }}>
+        <motion.div 
+          className="flex flex-col flex-1 py-4" 
+          style={{ fontFamily: "'LisaStyle', monospace" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
           {/* Hero Section */}
-      <section className="lisa-window">
+      <motion.section 
+        className="lisa-window"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+      >
         <div className="lisa-titlebar">
           <div className="lisa-title">Layer4 — Welcome</div>
 
         </div>
         <div className="lisa-content">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex-1 min-w-0">
+          <motion.div 
+            className="flex-1 min-w-0"
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
             <h1 className="text-3xl md:text-4xl font-bold mb-2 font-[Courier_New,monospace]">Welcome to Layer4</h1>
             <h2 className="text-lg md:text-xl mb-4 font-semibold text-[#0000ff]">Revolutionary Layer 4 Tek Protocol</h2>
             <p className="mb-5 max-w-xl text-base leading-relaxed">Built on &quot;Layer 4 Tek&quot; &#8211; a revolutionary protocol that transcends traditional blockchain layers. L4 is designed for one purpose: unbreakable stability. No selling allowed. No DEXs to tempt the weak. This is the future of financial stability, crafted by retards for retards.</p>
             <div className="text-center">
-              <button 
+              <motion.button 
                 onClick={() => setShowStakingModal(true)}
                 className="lisa-button lisa-button-primary inline-block"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 Stake
-              </button>
+              </motion.button>
             </div>
-          </div>
-          <div className="flex-1 flex flex-col justify-center min-w-0">
+          </motion.div>
+          <motion.div 
+            className="flex-1 flex flex-col justify-center min-w-0"
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
             <div className="p-2 flex justify-center items-center">
               {/* <video
                 autoPlay
@@ -119,14 +144,19 @@ const fetchTokenData = async () => {
             <div className="mt-3 text-center">
               <p className="text-sm font-mono text-[#808080] italic">&quot;In a world of chaos, Layer4 offers the ultimate commitment to holding.&quot;</p>
             </div>
-          </div>
+          </motion.div>
         </div>
         </div>
-      </section>
+      </motion.section>
 
 
       {/* Token Stats Section */}
-      <section className="lisa-window">
+      <motion.section 
+        className="lisa-window"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
         <div className="lisa-titlebar">
           <div className="lisa-title">Layer4 — Token Stats</div>
 
@@ -136,7 +166,13 @@ const fetchTokenData = async () => {
 
         </div>
         <div className="lisa-grid">
-          <div className="lisa-card flex flex-col items-center">
+          <motion.div 
+            className="lisa-card flex flex-col items-center"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            whileHover={{ scale: 1.05, y: -5 }}
+          >
             <span className="text-2xl mb-2">💰</span>
             <h4 className="font-semibold mb-1 text-sm">Current Price</h4>
             <p className="text-base font-bold text-[#0000ff] flex items-center gap-2">
@@ -154,18 +190,27 @@ const fetchTokenData = async () => {
             )}
 
             {!loading && (
-              <button
+              <motion.button
                 onClick={fetchTokenData}
                 className="text-xs text-gray-500 hover:text-[#0000ff] transition-colors"
                 title="Refresh price"
+                whileHover={{ rotate: 180 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.3 }}
               >
                 🔄
-              </button>
+              </motion.button>
             )}
           </p>
 
-          </div>
-          <div className="lisa-card flex flex-col items-center">
+          </motion.div>
+          <motion.div 
+            className="lisa-card flex flex-col items-center"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            whileHover={{ scale: 1.05, y: -5 }}
+          >
             <span className="text-2xl mb-2">📊</span>
             <h4 className="font-semibold mb-1 text-sm">Market Cap</h4>
             <p className="text-base font-bold text-[#0000ff]">
@@ -175,20 +220,32 @@ const fetchTokenData = async () => {
                 tokenData.marketCap
               )}
             </p>
-          </div>
-          <div className="lisa-card flex flex-col items-center">
+          </motion.div>
+          <motion.div 
+            className="lisa-card flex flex-col items-center"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+            whileHover={{ scale: 1.05, y: -5 }}
+          >
             <span className="text-2xl mb-2">🔢</span>
             <h4 className="font-semibold mb-1 text-sm">Total Supply</h4>
             <p className="text-base font-bold text-[#0000ff]">{tokenData.totalSupply}</p>
-          </div>
-          <div className="lisa-card flex flex-col items-center">
+          </motion.div>
+          <motion.div 
+            className="lisa-card flex flex-col items-center"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+            whileHover={{ scale: 1.05, y: -5 }}
+          >
             <span className="text-2xl mb-2">👥</span>
             <h4 className="font-semibold mb-1 text-sm">Holders</h4>
             <p className="text-base font-bold text-[#0000ff]">{tokenData.holders}</p>
-          </div>
+          </motion.div>
         </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Staking Section */}
       {/* <section className="lisa-window">
@@ -279,63 +336,107 @@ const fetchTokenData = async () => {
       </section> */}
 
       {/* Features Section */}
-      <section className="lisa-window">
+      <motion.section 
+        className="lisa-window"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.9 }}
+      >
         <div className="lisa-titlebar">
           <div className="lisa-title">Layer4 — Why Layer4?</div>
         </div>
         <div className="lisa-content">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="lisa-card">
+            <motion.div 
+              className="lisa-card"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 1.0 }}
+              whileHover={{ scale: 1.02, y: -5 }}
+            >
               <h3 className="font-bold text-lg mb-2">Unbreakable Stability</h3>
               <p>Built on Layer 4 Tek, our revolutionary protocol transcends traditional blockchain limitations for ultimate stability.</p>
-            </div>
-            <div className="lisa-card">
+            </motion.div>
+            <motion.div 
+              className="lisa-card"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 1.1 }}
+              whileHover={{ scale: 1.02, y: -5 }}
+            >
               <h3 className="font-bold text-lg mb-2">No Selling Allowed</h3>
               <p>Our unique protocol design ensures that once you buy, you can only hold, creating unbreakable commitment to the future.</p>
-            </div>
-            <div className="lisa-card">
+            </motion.div>
+            <motion.div 
+              className="lisa-card"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 1.2 }}
+              whileHover={{ scale: 1.02, y: -5 }}
+            >
               <h3 className="font-bold text-lg mb-2">Community Driven</h3>
               <p>Layer4 is crafted by retards for retards - a community of like-minded individuals committed to financial stability.</p>
               <div className="mt-3">
-                <Link href="https://x.com/i/communities/1960769432114094224" target="_blank" rel="noopener noreferrer" className="text-[#0000ff] hover:text-[#0000cc] underline font-mono text-sm">
-                  Join Our Community →
-                </Link>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Link href="https://x.com/i/communities/1960769432114094224" target="_blank" rel="noopener noreferrer" className="text-[#0000ff] hover:text-[#0000cc] underline font-mono text-sm">
+                    Join Our Community →
+                  </Link>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Staking Modal */}
-      {showStakingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="lisa-window">
-              <div className="lisa-titlebar">
-                <div className="lisa-title">Layer4 — Stake SOL for L4</div>
-                <button 
-                  onClick={() => setShowStakingModal(false)}
-                  className="lisa-button lisa-button-close"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="lisa-content">
-                <div className="flex justify-center">
-                  <SolanaStaking 
-                    onClose={() => setShowStakingModal(false)}
-                    showCloseButton={true}
-                  />
+      <AnimatePresence>
+        {showStakingModal && (
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div 
+              className="w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <div className="lisa-window">
+                <div className="lisa-titlebar">
+                  <div className="lisa-title">Layer4 — Stake SOL for L4</div>
+                  <motion.button 
+                    onClick={() => setShowStakingModal(false)}
+                    className="lisa-button lisa-button-close"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    ✕
+                  </motion.button>
+                </div>
+                <div className="lisa-content">
+                  <div className="flex justify-center">
+                    <SolanaStaking 
+                      onClose={() => setShowStakingModal(false)}
+                      showCloseButton={true}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Chat Widget */}
       <ChatWidget />
-    </div>
+    </motion.div>
   );
 }
 

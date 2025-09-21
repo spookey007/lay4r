@@ -268,29 +268,29 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
 
 
   return (
-    <div className="h-full flex flex-col bg-white border-r border-gray-200 shadow-sm">
+    <div className="h-full flex flex-col bg-blue-100 border-r-2 border-black">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <h2 className="text-lg font-bold text-gray-900 mb-2">Messages</h2>
-        <p className="text-sm text-gray-600">Channels & Direct Messages</p>
+      <div className="p-3 border-b-2 border-black bg-blue-200">
+        <h2 className="text-base font-bold text-black font-mono mb-1">MESSAGES</h2>
+        <p className="text-xs text-black font-mono">CHANNELS & DIRECT MESSAGES</p>
       </div>
 
       {/* Search */}
-      <div className="p-4 border-b border-gray-100 bg-gray-50">
+      <div className="p-3 border-b-2 border-black bg-blue-100">
         <div className="relative">
           <input
             type="text"
-            placeholder="🔍 Search channels & people..."
+            placeholder="🔍 SEARCH CHANNELS & PEOPLE..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-10 py-3 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 shadow-sm transition-all"
+            className="w-full pl-8 pr-6 py-2 text-xs border-2 border-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-black font-mono font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
           />
-          <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           {isSearching && (
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+              <div className="w-4 h-4 border-2 border-black border-t-white animate-spin"></div>
             </div>
           )}
         </div>
@@ -322,19 +322,19 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
             {allItems.map((item) => {
               if (item.searchType === 'channel') {
                 return (
-                  <button
-                    key={`channel-${item.id}`}
-                    onClick={() => handleChannelClick(item.id)}
-                    className={`w-full p-4 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 active:bg-gradient-to-r active:from-blue-100 active:to-indigo-100 transition-all duration-200 group relative ${
-                      currentChannelId === item.id ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-r-4 border-blue-500 shadow-sm' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold transition-all duration-200 ${
-                        currentChannelId === item.id 
-                          ? 'bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg scale-105' 
-                          : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 group-hover:from-blue-100 group-hover:to-indigo-100 group-hover:text-blue-600'
-                      }`}>
+                        <button
+                          key={`channel-${item.id}`}
+                          onClick={() => handleChannelClick(item.id)}
+                          className={`w-full p-2 text-left hover:bg-blue-200 active:bg-blue-300 transition-all duration-200 group relative border-b border-black ${
+                            currentChannelId === item.id ? 'bg-blue-200 border-r-4 border-black' : 'bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 border-2 border-black flex items-center justify-center text-sm font-bold transition-all duration-200 ${
+                              currentChannelId === item.id 
+                                ? 'bg-blue-500 text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] scale-105' 
+                                : 'bg-white text-black group-hover:bg-blue-200 group-hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                            }`}>
                         {item.type === 'dm' ? (
                           (() => {
                             const otherUser = getOtherUser(item);
@@ -352,52 +352,52 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
                           })()
                         ) : item.type === 'text-group' ? '👥' : '#'}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className={`font-bold text-base truncate transition-colors ${
-                            currentChannelId === item.id ? 'text-blue-900' : 'text-gray-900 group-hover:text-blue-800'
-                          }`}>
-                            {getChannelDisplayName(item)}
-                          </h4>
-                          {item.type !== 'dm' && (
-                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
-                              Channel
-                            </span>
-                          )}
-                          {item._count?.messages > 0 && (
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                              currentChannelId === item.id
-                                ? 'bg-blue-200 text-blue-800'
-                                : 'bg-gray-200 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-700'
-                            }`}>
-                              {item._count.messages}
-                            </span>
-                          )}
-                        </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 mb-1">
+                                <h4 className={`font-bold text-xs truncate transition-colors font-mono ${
+                                  currentChannelId === item.id ? 'text-blue-900' : 'text-black group-hover:text-blue-800'
+                                }`}>
+                                  {getChannelDisplayName(item)}
+                                </h4>
+                                {item.type !== 'dm' && (
+                                  <span className="text-xs px-1 py-0.5 bg-blue-300 text-black font-mono font-bold border border-black">
+                                    CH
+                                  </span>
+                                )}
+                                {item._count?.messages > 0 && (
+                                  <span className={`text-xs px-1 py-0.5 font-semibold font-mono border border-black ${
+                                    currentChannelId === item.id
+                                      ? 'bg-blue-200 text-black'
+                                      : 'bg-white text-black group-hover:bg-blue-100'
+                                  }`}>
+                                    {item._count.messages}
+                                  </span>
+                                )}
+                              </div>
                         {item.topic && (
-                          <p className={`text-sm truncate mb-2 ${
-                            currentChannelId === item.id ? 'text-blue-700' : 'text-gray-500 group-hover:text-blue-600'
+                          <p className={`text-xs truncate mb-2 font-mono ${
+                            currentChannelId === item.id ? 'text-blue-700' : 'text-black group-hover:text-blue-600'
                           }`}>
                             {item.topic}
                           </p>
                         )}
-                        <div className="flex items-center justify-between">
-                          {item.type !== 'dm' && (
-                            <span className={`text-xs font-medium flex items-center gap-1 ${
-                              currentChannelId === item.id ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'
-                            }`}>
-                              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                              {item.members?.length || 0} members
-                            </span>
-                          )}
-                          {item.updatedAt && (
-                            <span className={`text-xs ${
-                              currentChannelId === item.id ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'
-                            }`}>
-                              {new Date(item.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                        </div>
+                              <div className="flex items-center justify-between">
+                                {item.type !== 'dm' && (
+                                  <span className={`text-xs font-medium flex items-center gap-1 font-mono ${
+                                    currentChannelId === item.id ? 'text-blue-600' : 'text-black group-hover:text-blue-500'
+                                  }`}>
+                                    <span className="w-1.5 h-1.5 bg-green-500 border border-black"></span>
+                                    {item.members?.length || 0}M
+                                  </span>
+                                )}
+                                {item.updatedAt && (
+                                  <span className={`text-xs font-mono ${
+                                    currentChannelId === item.id ? 'text-blue-600' : 'text-black group-hover:text-blue-500'
+                                  }`}>
+                                    {new Date(item.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
+                              </div>
                       </div>
                     </div>
                     {currentChannelId === item.id && (
@@ -411,43 +411,41 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
                   <button
                     key={`user-${item.id}`}
                     onClick={() => handleUserClick(item)}
-                    className="w-full p-4 text-left hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 active:bg-gradient-to-r active:from-green-100 active:to-emerald-100 transition-all duration-200 group relative rounded-xl mx-2"
+                    className="w-full p-3 text-left hover:bg-blue-200 active:bg-blue-300 transition-all duration-200 group relative border-b border-black mx-2 bg-white"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-14 h-14 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-xl overflow-hidden transition-all duration-200 group-hover:scale-105 group-hover:shadow-lg">
+                        <div className="w-10 h-10 bg-green-500 border-2 border-black flex items-center justify-center text-white font-bold text-lg overflow-hidden transition-all duration-200 group-hover:scale-105 group-hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                           {item.avatarUrl ? (
-                            <img src={item.avatarUrl} alt={item.username} className="w-full h-full object-cover" />
+                            <img src={item.avatarUrl} alt={item.username} className="w-full h-full object-cover pixelated" style={{ imageRendering: 'pixelated' }} />
                           ) : (
                             item.username?.[0]?.toUpperCase() || item.walletAddress?.slice(0, 2) || 'U'
                           )}
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border border-black"></div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-bold text-base truncate text-gray-900 group-hover:text-green-800 transition-colors">
+                          <h4 className="font-bold text-sm truncate text-black font-mono group-hover:text-green-800 transition-colors">
                             {item.username || item.displayName || `${item.walletAddress?.slice(0, 6)}...${item.walletAddress?.slice(-4)}`}
                           </h4>
-                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                            Person
+                          <span className="text-xs px-2 py-1 bg-green-300 text-black font-mono font-bold border border-black">
+                            USER
                           </span>
                           {item.isVerified && (
                             <div className="text-blue-500" title="Verified">
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
+                              <div className="w-3 h-3 bg-green-500 border border-black"></div>
                             </div>
                           )}
                         </div>
                         {item.walletAddress && (
-                          <p className="text-sm text-gray-500 truncate mb-1 group-hover:text-green-600 transition-colors">
+                          <p className="text-xs text-black font-mono truncate mb-1 group-hover:text-green-600 transition-colors">
                             {item.walletAddress.slice(0, 8)}...{item.walletAddress.slice(-6)}
                           </p>
                         )}
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                          <span className="text-xs text-gray-400 group-hover:text-green-500 font-medium transition-colors">Online</span>
+                          <div className="w-2 h-2 bg-green-500 border border-black animate-pulse"></div>
+                          <span className="text-xs text-black group-hover:text-green-500 font-mono font-bold transition-colors">ONLINE</span>
                         </div>
                       </div>
                       <div className="text-gray-400 group-hover:text-green-500 transition-colors">
@@ -465,43 +463,43 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50">
+      <div className="p-3 border-t-2 border-black bg-blue-200">
         <button 
           onClick={handleOpenNewMessage}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:scale-105 transform"
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 flex items-center justify-center gap-2 hover:scale-105 font-mono text-sm"
         >
-          <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-4 h-4 bg-white/20 flex items-center justify-center">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
           </div>
-          💬 New Message
+          💬 NEW MESSAGE
         </button>
       </div>
 
       {/* New Message Modal */}
       {showUserSearch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white border-2 border-black w-full max-w-md shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b-2 border-black bg-blue-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">New Message</h3>
+                <h3 className="text-lg font-bold text-black font-mono">NEW MESSAGE</h3>
                 <button 
                   onClick={handleCloseNewMessage}
-                  className="text-gray-400 hover:text-gray-600 p-1"
+                  className="text-black hover:text-red-600 p-1 border border-black bg-white hover:bg-red-200 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
             </div>
-            <div className="p-6 flex-1 min-h-0">
+            <div className="p-4 flex-1 min-h-0">
               <div className="mb-4">
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search by username or wallet address..."
+                    placeholder="SEARCH BY USERNAME OR WALLET ADDRESS..."
                     value={modalSearchQuery}
                     onChange={(e) => setModalSearchQuery(e.target.value)}
                     onKeyDown={(e) => {
@@ -509,12 +507,12 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
                         searchModalUsers(modalSearchQuery);
                       }
                     }}
-                    className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className="w-full px-4 py-2 pr-8 border-2 border-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 text-sm font-mono font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                     autoFocus
                   />
                   {isModalSearching && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-black border-t-white animate-spin"></div>
                     </div>
                   )}
                 </div>
@@ -522,29 +520,29 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
               
               <div className="flex-1 overflow-y-auto">
                 {modalSearchQuery.trim() === '' ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="text-center py-8 text-black">
+                    <div className="w-16 h-16 bg-blue-200 border-2 border-black flex items-center justify-center mx-auto mb-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                      <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium mb-2">Start typing to search</p>
-                    <p className="text-xs">Find people to start a conversation</p>
+                    <p className="text-sm font-mono font-bold mb-2">START TYPING TO SEARCH</p>
+                    <p className="text-xs font-mono">FIND PEOPLE TO START A CONVERSATION</p>
                   </div>
                 ) : isModalSearching ? (
                   <div className="text-center py-8">
-                    <div className="inline-block w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                    <p className="text-sm text-gray-500">Searching...</p>
+                    <div className="inline-block w-6 h-6 border-2 border-black border-t-white animate-spin mb-4"></div>
+                    <p className="text-sm text-black font-mono font-bold">SEARCHING...</p>
                   </div>
                 ) : modalSearchResults.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="text-center py-8 text-black">
+                    <div className="w-16 h-16 bg-blue-200 border-2 border-black flex items-center justify-center mx-auto mb-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                      <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium mb-2">No users found</p>
-                    <p className="text-xs">Try searching with a different term</p>
+                    <p className="text-sm font-mono font-bold mb-2">NO USERS FOUND</p>
+                    <p className="text-xs font-mono">TRY SEARCHING WITH A DIFFERENT TERM</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -553,26 +551,24 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
                         key={user.id}
                         onClick={() => handleModalUserClick(user)}
                         disabled={isCreatingDM}
-                        className="w-full p-3 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors group rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full p-3 text-left hover:bg-blue-200 active:bg-blue-300 transition-colors group border border-black disabled:opacity-50 disabled:cursor-not-allowed bg-white"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                          <div className="w-10 h-10 bg-green-500 border-2 border-black flex items-center justify-center text-white font-bold text-sm overflow-hidden">
                             {user.avatarUrl ? (
-                              <img src={user.avatarUrl} alt={user.username} className="w-full h-full object-cover" />
+                              <img src={user.avatarUrl} alt={user.username} className="w-full h-full object-cover pixelated" style={{ imageRendering: 'pixelated' }} />
                             ) : (
                               user.username?.[0]?.toUpperCase() || user.walletAddress?.slice(0, 2) || 'U'
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-semibold text-sm truncate text-gray-900">
+                              <h4 className="font-semibold text-sm truncate text-black font-mono">
                                 {user.username || user.displayName || `${user.walletAddress?.slice(0, 6)}...${user.walletAddress?.slice(-4)}`}
                               </h4>
                               {user.isVerified && (
                                 <div className="text-blue-500" title="Verified">
-                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                  </svg>
+                                  <div className="w-3 h-3 bg-green-500 border border-black"></div>
                                 </div>
                               )}
                               {isCreatingDM && (

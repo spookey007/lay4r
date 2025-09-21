@@ -1,0 +1,188 @@
+/* Sega Game Aesthetic CSS */
+
+/* Pixel-perfect image rendering */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Custom pixel font fallback */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+.font-pixel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+/* Sega-style button animations */
+@keyframes sega-press {
+  0% {
+    transform: translateY(0);
+    box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  }
+  50% {
+    transform: translateY(2px);
+    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+  }
+  100% {
+    transform: translateY(0);
+    box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  }
+}
+
+.sega-button {
+  transition: all 0.1s ease;
+}
+
+.sega-button:active {
+  animation: sega-press 0.1s ease;
+}
+
+/* Sega-style glow effects */
+@keyframes sega-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor, 4px 4px 0px 0px rgba(0,0,0,1);
+  }
+  50% {
+    box-shadow: 0 0 10px currentColor, 4px 4px 0px 0px rgba(0,0,0,1);
+  }
+}
+
+.sega-glow {
+  animation: sega-glow 2s ease-in-out infinite;
+}
+
+/* Scan line effect for retro CRT feel */
+@keyframes scanlines {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 4px;
+  }
+}
+
+.sega-scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.1) 2px,
+    rgba(0,0,0,0.1) 4px
+  );
+  animation: scanlines 0.1s linear infinite;
+}
+
+/* Sega-style color palette */
+:root {
+  --sega-blue: #00a8ff;
+  --sega-green: #00ff88;
+  --sega-yellow: #ffff00;
+  --sega-red: #ff0040;
+  --sega-purple: #8000ff;
+  --sega-orange: #ff8000;
+  --sega-cyan: #00ffff;
+  --sega-pink: #ff0080;
+  --sega-white: #ffffff;
+  --sega-black: #000000;
+  --sega-gray: #808080;
+}
+
+/* Custom scrollbar for Sega aesthetic */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--sega-black);
+  border: 2px solid var(--sega-white);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sega-yellow);
+  border: 2px solid var(--sega-black);
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sega-orange);
+}
+
+/* Sega-style focus states */
+.sega-focus:focus {
+  outline: 3px solid var(--sega-yellow);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--sega-yellow), 4px 4px 0px 0px rgba(0,0,0,1);
+}
+
+/* Pixel-perfect borders */
+.sega-border {
+  border: 2px solid var(--sega-black);
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+}
+
+.sega-border-small {
+  border: 1px solid var(--sega-black);
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+}
+
+/* Sega-style text effects */
+.sega-text-shadow {
+  text-shadow: 2px 2px 0px var(--sega-black);
+}
+
+.sega-text-glow {
+  text-shadow: 0 0 5px currentColor, 2px 2px 0px var(--sega-black);
+}
+
+/* Retro game grid background */
+.sega-grid {
+  background-image: 
+    linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Sega-style loading animation */
+@keyframes sega-loading {
+  0%, 20% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+  80%, 100% { transform: translateY(0); }
+}
+
+.sega-loading {
+  animation: sega-loading 1s ease-in-out infinite;
+}
+
+.sega-loading:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.sega-loading:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+/* Sega-style hover effects */
+.sega-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+  transition: all 0.1s ease;
+}
+
+/* Pixel-perfect rounded corners (no rounding for authentic look) */
+.sega-rounded {
+  border-radius: 0;
+}
+
+/* Sega-style selection */
+::selection {
+  background: var(--sega-yellow);
+  color: var(--sega-black);
+}
+
+::-moz-selection {
+  background: var(--sega-yellow);
+  color: var(--sega-black);
+}
