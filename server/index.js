@@ -81,12 +81,26 @@ async function broadcastToChannel(channelId, event, payload, excludeUserId = nul
       select: { userId: true }
     });
     
+    console.log('👀 [SERVER] Broadcasting to channel:', {
+      channelId,
+      event,
+      payload,
+      excludeUserId,
+      totalMembers: members.length,
+      memberIds: members.map(m => m.userId)
+    });
+    
     let sentCount = 0;
     
     members.forEach(member => {
       if (member.userId !== excludeUserId) {
         const ws = connections.get(member.userId);
         if (ws && ws.readyState === 1) {
+          console.log('👀 [SERVER] Sending to user:', {
+            userId: member.userId,
+            event,
+            channelId
+          });
           try {
             ws.send(message);
             sentCount++;
@@ -290,6 +304,11 @@ function startServer() {
   async function handleStartTyping(userId, payload) {
     try {
       const { channelId } = payload;
+      console.log('👀 [SERVER] User started typing:', {
+        userId,
+        channelId,
+        payload
+      });
       await broadcastToChannel(channelId, SERVER_EVENTS.TYPING_STARTED, { userId, channelId }, userId);
     } catch (error) {
       console.error('Error handling typing start:', error);
@@ -300,6 +319,11 @@ function startServer() {
   async function handleStopTyping(userId, payload) {
     try {
       const { channelId } = payload;
+      console.log('👀 [SERVER] User stopped typing:', {
+        userId,
+        channelId,
+        payload
+      });
       await broadcastToChannel(channelId, SERVER_EVENTS.TYPING_STOPPED, { userId, channelId }, userId);
     } catch (error) {
       console.error('Error handling typing stop:', error);

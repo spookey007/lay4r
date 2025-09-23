@@ -92,7 +92,30 @@ router.get('/users', async (req, res) => {
 // Get all channels (rooms)
 router.get('/channels', async (req, res) => {
   try {
+    // Get current user from session
+    const token = req.cookies?.l4_session;
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const session = await prisma.session.findUnique({ 
+      where: { token }, 
+      include: { user: true } 
+    });
+    
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+
+    // Only return channels where the user is a member
     const channels = await prisma.channel.findMany({
+      where: {
+        members: {
+          some: {
+            userId: session.userId
+          }
+        }
+      },
       include: {
         members: {
           include: {
@@ -174,8 +197,8 @@ router.get('/channels/:id/messages', async (req, res) => {
     const channelId = req.params.id;
     const { limit = 50, before } = req.query;
 
-    // Ensure user is member of channel (auto-add if not)
-    let membership = await prisma.channelMember.findUnique({
+    // Check if user is member of channel - NO AUTO-ADDING for security
+    const membership = await prisma.channelMember.findUnique({
       where: {
         channelId_userId: {
           channelId,
@@ -185,36 +208,53 @@ router.get('/channels/:id/messages', async (req, res) => {
     });
 
     if (!membership) {
-      // Check if this is a DM channel and if it already has 2 members
-      const channel = await prisma.channel.findUnique({
-        where: { id: channelId },
-        include: {
-          _count: {
-            select: { members: true }
-          }
-        }
+      console.error('❌ [SECURITY] User attempted to access channel without membership', {
+        channelId,
+        userId: session.userId,
+        userWallet: session.user.walletAddress
       });
-      
-      if (channel?.type === 'dm' && channel._count.members >= 2) {
-        console.error('❌ [DM VALIDATION] Cannot add member to DM channel: already has 2 members', {
-          channelId,
-          currentMemberCount: channel._count.members,
-          userId: session.userId
-        });
-        return res.status(400).json({ error: 'DM channels can only have 2 members' });
-      }
-      
-      console.log(`👥 Auto-adding user ${session.userId} as member of channel ${channelId}`);
-      membership = await prisma.channelMember.create({
-        data: { channelId, userId: session.userId }
-      });
+      return res.status(403).json({ error: 'Access denied: You are not a member of this channel' });
     }
 
-    // Fetch latest messages (most recent first, then reverse for display)
+    // Verify channel exists and get channel info
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                walletAddress: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+
+    // Fetch latest messages with proper access control
     const messages = await prisma.message.findMany({
       where: {
         channelId,
         deletedAt: null,
+        // Only show messages from:
+        // 1. System messages (isSystem = true)
+        // 2. Messages from users who are members of this channel
+        OR: [
+          { isSystem: true }, // System messages
+          {
+            authorId: {
+              in: channel.members.map(member => member.userId)
+            }
+          }
+        ],
         ...(before && { sentAt: { lt: new Date(before) } })
       },
       include: {
@@ -291,14 +331,49 @@ router.get('/channels/:id/messages', async (req, res) => {
 // Send message to channel
 router.post('/channels/:id/messages', async (req, res) => {
   try {
+    // Get current user from session
+    const token = req.cookies?.l4_session;
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const session = await prisma.session.findUnique({ 
+      where: { token }, 
+      include: { user: true } 
+    });
+    
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+
     const { id } = req.params;
     const { content, replyToId } = req.body;
+
+    // Check if user is member of channel
+    const membership = await prisma.channelMember.findUnique({
+      where: {
+        channelId_userId: {
+          channelId: id,
+          userId: session.userId
+        }
+      }
+    });
+
+    if (!membership) {
+      console.error('❌ [SECURITY] User attempted to post message to channel without membership', {
+        channelId: id,
+        userId: session.userId,
+        userWallet: session.user.walletAddress
+      });
+      return res.status(403).json({ error: 'Access denied: You are not a member of this channel' });
+    }
     
     const message = await prisma.message.create({
       data: {
         content,
         channelId: id,
-        authorId: 'system',
+        authorId: session.userId,
+        isSystem: false,
         replyToId
       },
       include: {
@@ -417,13 +492,55 @@ router.post('/upload-image', upload.single('image'), async (req, res) => {
 // Add reaction to message
 router.post('/messages/:id/reactions', async (req, res) => {
   try {
+    // Get current user from session
+    const token = req.cookies?.l4_session;
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const session = await prisma.session.findUnique({ 
+      where: { token }, 
+      include: { user: true } 
+    });
+    
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+
     const { id } = req.params;
     const { emoji } = req.body;
+
+    // Check if user has access to this message (via channel membership)
+    const message = await prisma.message.findUnique({
+      where: { id },
+      include: {
+        channel: {
+          include: {
+            members: {
+              where: { userId: session.userId }
+            }
+          }
+        }
+      }
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    if (message.channel.members.length === 0) {
+      console.error('❌ [SECURITY] User attempted to react to message without channel access', {
+        messageId: id,
+        userId: session.userId,
+        userWallet: session.user.walletAddress
+      });
+      return res.status(403).json({ error: 'Access denied: You do not have access to this message' });
+    }
     
     const reaction = await prisma.messageReaction.create({
       data: {
         messageId: id,
-        userId: 'system',
+        userId: session.userId,
         emoji
       },
       include: {
@@ -480,7 +597,7 @@ router.get('/search-users', async (req, res) => {
 // Create or find DM channel
 router.post('/dm/create', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, preventDuplicates } = req.body;
     
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' });
@@ -568,6 +685,15 @@ router.post('/dm/create', async (req, res) => {
           expected: 2
         });
         return res.status(500).json({ error: 'Invalid DM channel: must have exactly 2 members' });
+      }
+      
+      // If preventDuplicates flag is set, return duplicate error instead of existing channel
+      if (preventDuplicates) {
+        return res.status(409).json({ 
+          error: 'DUPLICATE_DM',
+          message: 'DM channel already exists between these users',
+          channel: existingChannel 
+        });
       }
       
       return res.json({ channel: existingChannel });

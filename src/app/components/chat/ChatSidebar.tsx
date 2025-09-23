@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useChatStore } from '@/stores/chatStore';
 import { useQuery } from '@tanstack/react-query';
 import { useWebSocket, useChatEvents, SERVER_EVENTS } from '@/contexts/WebSocketContext';
+import { useLisaSounds } from '@/lib/lisaSounds';
+import { useAuth } from '@/lib/authService';
 
 interface ChatSidebarProps {
   onChannelSelect: (channelId: string) => void;
@@ -19,6 +21,7 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
   const [modalSearchResults, setModalSearchResults] = useState<any[]>([]);
   const [isModalSearching, setIsModalSearching] = useState(false);
   const [isCreatingDM, setIsCreatingDM] = useState(false);
+  const { playHoverSound } = useLisaSounds();
   
   const { 
     channels, 
@@ -29,6 +32,14 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
     setCurrentChannel,
     currentUser
   } = useChatStore();
+  
+  // Get current user from auth service
+  const { user: authUser } = useAuth();
+  const currentUserData = authUser || currentUser;
+  
+  console.log('🔍 [DEBUG] Current user from chatStore:', currentUser);
+  console.log('🔍 [DEBUG] Current user from authService:', authUser);
+  console.log('🔍 [DEBUG] Using user:', currentUserData);
 
   const { joinChannel, leaveChannel } = useChatEvents();
   const { on, off } = useWebSocket();
@@ -52,7 +63,7 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
   // Get the other user's data for DM channels
   const getOtherUser = (channel: any) => {
     if (channel.type === 'dm') {
-      return channel.members?.find((member: any) => member.userId !== currentUser?.id)?.user;
+      return channel.members?.find((member: any) => member.userId !== currentUserData?.id)?.user;
     }
     return null;
   };
@@ -105,12 +116,36 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
         return false;
       });
 
+      // Filter out current user from search results
+      console.log('🔍 [DEBUG] Current user ID:', currentUserData?.id);
+      console.log('🔍 [DEBUG] Users before filtering:', users.map((u: any) => ({ id: u.id, username: u.username })));
+      const filteredUsers = users.filter((user: any) => {
+        // Only filter if currentUser exists and has an ID
+        if (!currentUserData?.id) {
+          console.log('🔍 [DEBUG] No current user, showing all users');
+          return true;
+        }
+        
+        const isCurrentUser = user.id === currentUserData.id || 
+                             user.walletAddress === currentUserData.walletAddress ||
+                             user.username === currentUserData.username;
+        console.log('🔍 [DEBUG] Checking user:', { 
+          userId: user.id, 
+          currentUserId: currentUserData.id,
+          userWallet: user.walletAddress,
+          currentWallet: currentUserData.walletAddress,
+          isCurrentUser 
+        });
+        return !isCurrentUser;
+      });
+      console.log('🔍 [DEBUG] Users after filtering:', filteredUsers.map((u: any) => ({ id: u.id, username: u.username })));
+      
       // Combine and sort results
       const combinedResults = [
         ...filteredChannels.map((channel: any) => ({ ...channel, searchType: 'channel' })),
-        ...users.map((user: any) => ({ ...user, searchType: 'user' }))
+        ...filteredUsers.map((user: any) => ({ ...user, searchType: 'user' }))
       ];
-      console.log(combinedResults)
+      console.log('🔍 [DEBUG] Combined results:', combinedResults)
       setSearchResults(combinedResults);
     } catch (error) {
 
@@ -132,7 +167,32 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
       const { apiFetch } = await import('@/lib/api');
       const response = await apiFetch(`/chat/search-users?q=${encodeURIComponent(query)}`);
       const data = await response.json();
-      setModalSearchResults(data.users || []);
+      const users = data.users || [];
+      
+      // Filter out current user from search results
+      console.log('🔍 [MODAL DEBUG] Current user ID:', currentUserData?.id);
+      console.log('🔍 [MODAL DEBUG] Users before filtering:', users.map((u: any) => ({ id: u.id, username: u.username })));
+      const filteredUsers = users.filter((user: any) => {
+        // Only filter if currentUser exists and has an ID
+        if (!currentUserData?.id) {
+          console.log('🔍 [MODAL DEBUG] No current user, showing all users');
+          return true;
+        }
+        
+        const isCurrentUser = user.id === currentUserData.id || 
+                             user.walletAddress === currentUserData.walletAddress ||
+                             user.username === currentUserData.username;
+        console.log('🔍 [MODAL DEBUG] Checking user:', { 
+          userId: user.id, 
+          currentUserId: currentUserData.id,
+          userWallet: user.walletAddress,
+          currentWallet: currentUserData.walletAddress,
+          isCurrentUser 
+        });
+        return !isCurrentUser;
+      });
+      console.log('🔍 [MODAL DEBUG] Users after filtering:', filteredUsers.map((u: any) => ({ id: u.id, username: u.username })));
+      setModalSearchResults(filteredUsers);
     } catch (error) {
 
       setModalSearchResults([]);
@@ -201,6 +261,16 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
   };
 
   const handleUserClick = async (user: any) => {
+    // Don't allow messaging yourself
+    if (user.id === currentUserData?.id) {
+      return;
+    }
+
+    // Prevent multiple clicks while creating DM
+    if (isCreatingDM) {
+      return;
+    }
+
     setIsCreatingDM(true);
     
     try {
@@ -210,11 +280,33 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
         displayName: user.displayName
       });
 
+      // First check if DM already exists locally for instant response
+      const existingChannel = channels.find(channel => 
+        channel.type === 'dm' && 
+        channel.members?.some((member: any) => member.userId === user.id)
+      );
+
+      if (existingChannel) {
+        console.log('💬 [DM] Found existing DM channel, switching immediately');
+        setCurrentChannel(existingChannel.id);
+        onChannelSelect(existingChannel.id);
+        setShowUserSearch(false);
+        setModalSearchQuery('');
+        setModalSearchResults([]);
+        return;
+      }
+
       // Create or find DM channel with this user via Express backend
       const { apiFetch } = await import('@/lib/api');
       const response = await apiFetch('/chat/dm/create', {
         method: 'POST',
-        body: JSON.stringify({ userId: user.id })
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userId: user.id,
+          preventDuplicates: true // Flag for backend duplicate prevention
+        })
       });
 
       if (response.ok) {
@@ -234,9 +326,25 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
         setModalSearchQuery('');
         setModalSearchResults([]);
       } else {
-        console.error('❌ [DM] Failed to create DM channel:', response.status, response.statusText);
         const errorData = await response.json();
-        console.error('❌ [DM] Error details:', errorData);
+        if (errorData.error === 'DUPLICATE_DM') {
+          console.log('💬 [DM] Duplicate DM detected, finding existing channel');
+          // DM already exists, find and switch to it
+          const duplicateChannel = channels.find(channel => 
+            channel.type === 'dm' && 
+            channel.members?.some((member: any) => member.userId === user.id)
+          );
+          if (duplicateChannel) {
+            setCurrentChannel(duplicateChannel.id);
+            onChannelSelect(duplicateChannel.id);
+            setShowUserSearch(false);
+            setModalSearchQuery('');
+            setModalSearchResults([]);
+          }
+        } else {
+          console.error('❌ [DM] Failed to create DM channel:', response.status, response.statusText);
+          console.error('❌ [DM] Error details:', errorData);
+        }
       }
     } catch (error) {
       console.error('❌ [DM] Error creating DM channel:', error);
@@ -406,12 +514,28 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
                   </button>
                 );
               } else {
-                // User item
+                // User item - don't show current user (only if currentUser exists)
+                if (currentUserData?.id) {
+                  const isCurrentUser = item.id === currentUserData.id || 
+                                       item.walletAddress === currentUserData.walletAddress ||
+                                       item.username === currentUserData.username;
+                  if (isCurrentUser) {
+                    console.log('🔍 [UI DEBUG] Hiding current user from UI:', { 
+                      itemId: item.id, 
+                      currentUserId: currentUserData.id,
+                      itemWallet: item.walletAddress,
+                      currentWallet: currentUserData.walletAddress
+                    });
+                    return null;
+                  }
+                }
+                
                 return (
                   <button
                     key={`user-${item.id}`}
                     onClick={() => handleUserClick(item)}
-                    className="w-full p-3 text-left hover:bg-blue-200 active:bg-blue-300 transition-all duration-200 group relative border-b border-black mx-2 bg-white"
+                    disabled={isCreatingDM}
+                    className="w-full p-3 text-left hover:bg-blue-200 active:bg-blue-300 transition-all duration-200 group relative border-b border-black mx-2 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative">
@@ -448,11 +572,19 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
                           <span className="text-xs text-black group-hover:text-green-500 font-mono font-bold transition-colors">ONLINE</span>
                         </div>
                       </div>
-                      <div className="text-gray-400 group-hover:text-green-500 transition-colors">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                      </div>
+                      {!(currentUserData?.id && (item.id === currentUserData.id || 
+                        item.walletAddress === currentUserData.walletAddress ||
+                        item.username === currentUserData.username)) && (
+                        <div className="text-gray-400 group-hover:text-green-500 transition-colors">
+                          {isCreatingDM ? (
+                            <div className="w-5 h-5 border-2 border-gray-400 border-t-green-500 animate-spin rounded-full"></div>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </button>
                 );
@@ -466,6 +598,7 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
       <div className="p-3 border-t-2 border-black bg-blue-200">
         <button 
           onClick={handleOpenNewMessage}
+          onMouseEnter={() => playHoverSound()}
           className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 flex items-center justify-center gap-2 hover:scale-105 font-mono text-sm"
         >
           <div className="w-4 h-4 bg-white/20 flex items-center justify-center">
@@ -499,7 +632,7 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="SEARCH BY USERNAME OR WALLET ADDRESS..."
+                    placeholder="SEARCH BY USERNAME..."
                     value={modalSearchQuery}
                     onChange={(e) => setModalSearchQuery(e.target.value)}
                     onKeyDown={(e) => {

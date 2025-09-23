@@ -324,7 +324,11 @@ export const useChatStore = create<ChatState>()(
         // Filter out users who haven't typed in the last 3 seconds
         const activeTypingUsers = typingUsers.filter(user => now - user.timestamp < 3000);
         
-        return activeTypingUsers.map(typingUser => state.users[typingUser.userId]).filter(Boolean);
+        // Map to user objects and filter out current user and invalid users
+        return activeTypingUsers
+          .map(typingUser => state.users[typingUser.userId])
+          .filter(Boolean)
+          .filter(user => user.id !== state.currentUser?.id); // Don't show current user typing
       }
     }),
     {

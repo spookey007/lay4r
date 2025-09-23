@@ -4,10 +4,15 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SolanaStaking from "./components/SolanaStaking";
 import ChatWidget from "./components/ChatWidget";
+import CardMemoryGame from "./components/CardMemoryGame";
+import { useLisaSounds } from "@/lib/lisaSounds";
+import { animations, createHoverAnimation, createTapAnimation } from "@/lib/animations";
 
 
 export default function Home() {
   const [showStakingModal, setShowStakingModal] = useState(false);
+  const [showCardGame, setShowCardGame] = useState(false);
+  const { playButtonClick, playLinkClick, playHoverSound } = useLisaSounds();
   
   const [tokenData, setTokenData] = useState({
     price: '$0.00006489',
@@ -84,16 +89,21 @@ const fetchTokenData = async () => {
         <motion.div 
           className="flex flex-col flex-1 py-4" 
           style={{ fontFamily: "'LisaStyle', monospace" }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 500, damping: 50 }}
         >
           {/* Hero Section */}
       <motion.section 
         className="lisa-window"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
+        initial={{ y: 30, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 400, 
+          damping: 40, 
+          delay: 0.1 
+        }}
       >
         <div className="lisa-titlebar">
           <div className="lisa-title">Layer4 — Welcome</div>
@@ -110,15 +120,103 @@ const fetchTokenData = async () => {
             <h1 className="text-3xl md:text-4xl font-bold mb-2 font-[Courier_New,monospace]">Welcome to Layer4</h1>
             <h2 className="text-lg md:text-xl mb-4 font-semibold text-[#0000ff]">Revolutionary Layer 4 Tek Protocol</h2>
             <p className="mb-5 max-w-xl text-base leading-relaxed">Built on &quot;Layer 4 Tek&quot; &#8211; a revolutionary protocol that transcends traditional blockchain layers. L4 is designed for one purpose: unbreakable stability. No selling allowed. No DEXs to tempt the weak. This is the future of financial stability, crafted by retards for retards.</p>
-            <div className="text-center">
-              <motion.button 
-                onClick={() => setShowStakingModal(true)}
-                className="lisa-button lisa-button-primary inline-block"
-                whileHover={{ scale: 1.05 }}
+            <div className="text-center space-y-4">
+              {/* <motion.button 
+                onClick={() => {
+                  playButtonClick();
+                  setShowStakingModal(true);
+                }}
+                onMouseEnter={() => playHoverSound()}
+                className="lisa-button lisa-button-primary inline-block mr-4"
+                whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ 
+                  type: "spring", 
+                  stiffness: 400, 
+                  damping: 40, 
+                  delay: 0.3 
+                }}
               >
                 Stake
+              </motion.button> */}
+              <motion.button 
+                onClick={() => {
+                  playButtonClick();
+                  window.open('https://phantom.com/tokens/solana/EtpQtF2hZZaEMZTKCp15MmMtwjsXJGz4Z6ADCUQopump', '_blank');
+                }}
+                onMouseEnter={() => playHoverSound()}
+                className="lisa-button lisa-button-primary inline-block mr-4"
+                whileHover={{ 
+                  scale: 1.08, 
+                  y: -4,
+                  transition: { 
+                    type: "tween",
+                    ease: "easeOut",   // Fast in
+                    duration: 0.12
+                  }
+                }}
+                whileTap={{ 
+                  scale: 0.95, 
+                  y: 2,
+                  transition: { 
+                    type: "tween", 
+                    ease: "easeOut", 
+                    duration: 0.08 
+                  }
+                }}
+                // 👇 CRITICAL: Add exit transition for instant snap-back
+                transition={{ 
+                  type: "tween",
+                  ease: "easeIn",    // Fast out — snaps back instantly
+                  duration: 0.15
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                // Keep your initial entrance spring if you like — it’s separate
+                exit={{ opacity: 0, y: 20 }}
+              >
+                Get Started
+              </motion.button>
+              
+              <motion.button 
+                onClick={() => {
+                  playButtonClick();
+                  setShowCardGame(true);
+                }}
+                onMouseEnter={() => playHoverSound()}
+                className="lisa-button inline-block"
+                whileHover={{ 
+                  scale: 1.08, 
+                  y: -4,
+                  transition: { 
+                    type: "tween",
+                    ease: "easeOut",   // Fast in
+                    duration: 0.12
+                  }
+                }}
+                whileTap={{ 
+                  scale: 0.95, 
+                  y: 2,
+                  transition: { 
+                    type: "tween", 
+                    ease: "easeOut", 
+                    duration: 0.08 
+                  }
+                }}
+                // 👇 CRITICAL: Add exit transition for instant snap-back
+                transition={{ 
+                  type: "tween",
+                  ease: "easeIn",    // Fast out — snaps back instantly
+                  duration: 0.15
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                // Keep your initial entrance spring if you like — it’s separate
+                exit={{ opacity: 0, y: 20 }}
+              >
+                🎮 Play Game
               </motion.button>
             </div>
           </motion.div>
@@ -129,7 +227,7 @@ const fetchTokenData = async () => {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <div className="p-2 flex justify-center items-center">
-              {/* <video
+              <video
                 autoPlay
                 muted
                 loop
@@ -139,7 +237,7 @@ const fetchTokenData = async () => {
               >
                 <source src="/motherboard.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
-              </video> */}
+              </video>
             </div>
             <div className="mt-3 text-center">
               <p className="text-sm font-mono text-[#808080] italic">&quot;In a world of chaos, Layer4 offers the ultimate commitment to holding.&quot;</p>
@@ -153,9 +251,14 @@ const fetchTokenData = async () => {
       {/* Token Stats Section */}
       <motion.section 
         className="lisa-window"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.4 }}
+        initial={{ y: 30, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 400, 
+          damping: 40, 
+          delay: 0.4 
+        }}
       >
         <div className="lisa-titlebar">
           <div className="lisa-title">Layer4 — Token Stats</div>
@@ -165,13 +268,51 @@ const fetchTokenData = async () => {
         <div className="lisa-tabs">
 
         </div>
-        <div className="lisa-grid">
+          <motion.div 
+            className="lisa-grid"
+            initial="initial"
+            animate="animate"
+            variants={{
+              initial: {},
+              animate: {
+                transition: {
+                  staggerChildren: 0.1,
+                  delayChildren: 0.1
+                }
+              }
+            }}
+          >
           <motion.div 
             className="lisa-card flex flex-col items-center"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-            whileHover={{ scale: 1.05, y: -5 }}
+            onMouseEnter={() => playHoverSound()}
+            whileHover={{ 
+              scale: 1.08, 
+              y: -4,
+              transition: { 
+                type: "tween",
+                ease: "easeOut",   // Fast in
+                duration: 0.12
+              }
+            }}
+            whileTap={{ 
+              scale: 0.95, 
+              y: 2,
+              transition: { 
+                type: "tween", 
+                ease: "easeOut", 
+                duration: 0.08 
+              }
+            }}
+            // 👇 CRITICAL: Add exit transition for instant snap-back
+            transition={{ 
+              type: "tween",
+              ease: "easeIn",    // Fast out — snaps back instantly
+              duration: 0.15
+            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            // Keep your initial entrance spring if you like — it’s separate
+            exit={{ opacity: 0, y: 20 }}
           >
             <span className="text-2xl mb-2">💰</span>
             <h4 className="font-semibold mb-1 text-sm">Current Price</h4>
@@ -191,7 +332,11 @@ const fetchTokenData = async () => {
 
             {!loading && (
               <motion.button
-                onClick={fetchTokenData}
+                onClick={() => {
+                  fetchTokenData();
+                  playLinkClick();
+                }}
+            
                 className="text-xs text-gray-500 hover:text-[#0000ff] transition-colors"
                 title="Refresh price"
                 whileHover={{ rotate: 180 }}
@@ -206,10 +351,35 @@ const fetchTokenData = async () => {
           </motion.div>
           <motion.div 
             className="lisa-card flex flex-col items-center"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-            whileHover={{ scale: 1.05, y: -5 }}
+            onMouseEnter={() => playHoverSound()}
+            whileHover={{ 
+              scale: 1.08, 
+              y: -4,
+              transition: { 
+                type: "tween",
+                ease: "easeOut",   // Fast in
+                duration: 0.12
+              }
+            }}
+            whileTap={{ 
+              scale: 0.95, 
+              y: 2,
+              transition: { 
+                type: "tween", 
+                ease: "easeOut", 
+                duration: 0.08 
+              }
+            }}
+            // 👇 CRITICAL: Add exit transition for instant snap-back
+            transition={{ 
+              type: "tween",
+              ease: "easeIn",    // Fast out — snaps back instantly
+              duration: 0.15
+            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            // Keep your initial entrance spring if you like — it’s separate
+            exit={{ opacity: 0, y: 20 }}
           >
             <span className="text-2xl mb-2">📊</span>
             <h4 className="font-semibold mb-1 text-sm">Market Cap</h4>
@@ -223,10 +393,35 @@ const fetchTokenData = async () => {
           </motion.div>
           <motion.div 
             className="lisa-card flex flex-col items-center"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
-            whileHover={{ scale: 1.05, y: -5 }}
+            onMouseEnter={() => playHoverSound()}
+            whileHover={{ 
+              scale: 1.08, 
+              y: -4,
+              transition: { 
+                type: "tween",
+                ease: "easeOut",   // Fast in
+                duration: 0.12
+              }
+            }}
+            whileTap={{ 
+              scale: 0.95, 
+              y: 2,
+              transition: { 
+                type: "tween", 
+                ease: "easeOut", 
+                duration: 0.08 
+              }
+            }}
+            // 👇 CRITICAL: Add exit transition for instant snap-back
+            transition={{ 
+              type: "tween",
+              ease: "easeIn",    // Fast out — snaps back instantly
+              duration: 0.15
+            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            // Keep your initial entrance spring if you like — it’s separate
+            exit={{ opacity: 0, y: 20 }}
           >
             <span className="text-2xl mb-2">🔢</span>
             <h4 className="font-semibold mb-1 text-sm">Total Supply</h4>
@@ -234,16 +429,41 @@ const fetchTokenData = async () => {
           </motion.div>
           <motion.div 
             className="lisa-card flex flex-col items-center"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.8 }}
-            whileHover={{ scale: 1.05, y: -5 }}
+            onMouseEnter={() => playHoverSound()}
+            whileHover={{ 
+              scale: 1.08, 
+              y: -4,
+              transition: { 
+                type: "tween",
+                ease: "easeOut",   // Fast in
+                duration: 0.12
+              }
+            }}
+            whileTap={{ 
+              scale: 0.95, 
+              y: 2,
+              transition: { 
+                type: "tween", 
+                ease: "easeOut", 
+                duration: 0.08 
+              }
+            }}
+            // 👇 CRITICAL: Add exit transition for instant snap-back
+            transition={{ 
+              type: "tween",
+              ease: "easeIn",    // Fast out — snaps back instantly
+              duration: 0.15
+            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            // Keep your initial entrance spring if you like — it’s separate
+            exit={{ opacity: 0, y: 20 }}
           >
             <span className="text-2xl mb-2">👥</span>
             <h4 className="font-semibold mb-1 text-sm">Holders</h4>
             <p className="text-base font-bold text-[#0000ff]">{tokenData.holders}</p>
           </motion.div>
-        </div>
+        </motion.div>
         </div>
       </motion.section>
 
@@ -338,41 +558,134 @@ const fetchTokenData = async () => {
       {/* Features Section */}
       <motion.section 
         className="lisa-window"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.9 }}
+        initial={{ y: 30, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 400, 
+          damping: 40, 
+          delay: 0.9 
+        }}
       >
         <div className="lisa-titlebar">
           <div className="lisa-title">Layer4 — Why Layer4?</div>
         </div>
         <div className="lisa-content">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+            initial="initial"
+            animate="animate"
+            variants={{
+              initial: {},
+              animate: {
+                transition: {
+                  staggerChildren: 0.1,
+                  delayChildren: 0.1
+                }
+              }
+            }}
+          >
             <motion.div 
               className="lisa-card"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.0 }}
-              whileHover={{ scale: 1.02, y: -5 }}
+              onMouseEnter={() => playHoverSound()}
+              whileHover={{ 
+                scale: 1.08, 
+                y: -4,
+                transition: { 
+                  type: "tween",
+                  ease: "easeOut",   // Fast in
+                  duration: 0.12
+                }
+              }}
+              whileTap={{ 
+                scale: 0.95, 
+                y: 2,
+                transition: { 
+                  type: "tween", 
+                  ease: "easeOut", 
+                  duration: 0.08 
+                }
+              }}
+              // 👇 CRITICAL: Add exit transition for instant snap-back
+              transition={{ 
+                type: "tween",
+                ease: "easeIn",    // Fast out — snaps back instantly
+                duration: 0.15
+              }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              // Keep your initial entrance spring if you like — it’s separate
+              exit={{ opacity: 0, y: 20 }}
             >
               <h3 className="font-bold text-lg mb-2">Unbreakable Stability</h3>
               <p>Built on Layer 4 Tek, our revolutionary protocol transcends traditional blockchain limitations for ultimate stability.</p>
             </motion.div>
             <motion.div 
               className="lisa-card"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.1 }}
-              whileHover={{ scale: 1.02, y: -5 }}
+              onMouseEnter={() => playHoverSound()}
+              whileHover={{ 
+                scale: 1.08, 
+                y: -4,
+                transition: { 
+                  type: "tween",
+                  ease: "easeOut",   // Fast in
+                  duration: 0.12
+                }
+              }}
+              whileTap={{ 
+                scale: 0.95, 
+                y: 2,
+                transition: { 
+                  type: "tween", 
+                  ease: "easeOut", 
+                  duration: 0.08 
+                }
+              }}
+              // 👇 CRITICAL: Add exit transition for instant snap-back
+              transition={{ 
+                type: "tween",
+                ease: "easeIn",    // Fast out — snaps back instantly
+                duration: 0.15
+              }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              // Keep your initial entrance spring if you like — it’s separate
+              exit={{ opacity: 0, y: 20 }}
             >
               <h3 className="font-bold text-lg mb-2">No Selling Allowed</h3>
               <p>Our unique protocol design ensures that once you buy, you can only hold, creating unbreakable commitment to the future.</p>
             </motion.div>
             <motion.div 
               className="lisa-card"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.2 }}
-              whileHover={{ scale: 1.02, y: -5 }}
+              onMouseEnter={() => playHoverSound()}
+              whileHover={{ 
+                scale: 1.08, 
+                y: -4,
+                transition: { 
+                  type: "tween",
+                  ease: "easeOut",   // Fast in
+                  duration: 0.12
+                }
+              }}
+              whileTap={{ 
+                scale: 0.95, 
+                y: 2,
+                transition: { 
+                  type: "tween", 
+                  ease: "easeOut", 
+                  duration: 0.08 
+                }
+              }}
+              // 👇 CRITICAL: Add exit transition for instant snap-back
+              transition={{ 
+                type: "tween",
+                ease: "easeIn",    // Fast out — snaps back instantly
+                duration: 0.15
+              }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              // Keep your initial entrance spring if you like — it’s separate
+              exit={{ opacity: 0, y: 20 }}
             >
               <h3 className="font-bold text-lg mb-2">Community Driven</h3>
               <p>Layer4 is crafted by retards for retards - a community of like-minded individuals committed to financial stability.</p>
@@ -381,13 +694,20 @@ const fetchTokenData = async () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Link href="https://x.com/i/communities/1960769432114094224" target="_blank" rel="noopener noreferrer" className="text-[#0000ff] hover:text-[#0000cc] underline font-mono text-sm">
+                  <Link
+                    href="https://x.com/i/communities/1960769432114094224" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    onClick={() => playLinkClick()}
+                    onMouseEnter={() => playHoverSound()}
+                    className="text-[#0000ff] hover:text-[#0000cc] underline font-mono text-sm"
+                  >
                     Join Our Community →
                   </Link>
                 </motion.div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         </div>
       </motion.section>
 
@@ -406,13 +726,16 @@ const fetchTokenData = async () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              transition={{ type: "spring", stiffness: 400, damping: 40 }}
             >
               <div className="lisa-window">
                 <div className="lisa-titlebar">
                   <div className="lisa-title">Layer4 — Stake SOL for L4</div>
                   <motion.button 
-                    onClick={() => setShowStakingModal(false)}
+                    onClick={() => {
+                      playButtonClick();
+                      setShowStakingModal(false);
+                    }}
                     className="lisa-button lisa-button-close"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -436,6 +759,12 @@ const fetchTokenData = async () => {
 
       {/* Chat Widget */}
       <ChatWidget />
+
+      {/* Card Memory Game Modal */}
+      <CardMemoryGame 
+        isOpen={showCardGame} 
+        onClose={() => setShowCardGame(false)} 
+      />
     </motion.div>
   );
 }

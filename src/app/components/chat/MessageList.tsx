@@ -47,6 +47,17 @@ export default function MessageList({
   const currentMessages = getCurrentMessages();
   const typingUsers = getTypingUsers(channelId);
   
+  // Debug typing users
+  useEffect(() => {
+    if (typingUsers.length > 0) {
+      console.log('👀 [TYPING] Displaying typing users:', {
+        channelId,
+        typingUsers: typingUsers.map(u => ({ id: u.id, username: u.username, displayName: u.displayName })),
+        currentUserId: currentUser?.id
+      });
+    }
+  }, [typingUsers, channelId, currentUser]);
+  
 
   // Scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -221,18 +232,48 @@ export default function MessageList({
 
     const handleTypingStarted = (payload: any) => {
       if (payload.channelId === channelId) {
-
-        const { addTypingUser } = useChatStore.getState();
-        addTypingUser(channelId, {
+        console.log('👀 [TYPING] User started typing:', {
           userId: payload.userId,
           channelId: payload.channelId,
-          timestamp: Date.now()
+          currentChannelId: channelId
         });
+
+        const { addTypingUser, currentUser, users, addUser } = useChatStore.getState();
+        
+        // Don't add current user to typing list
+        if (payload.userId !== currentUser?.id) {
+          // Check if we have user data, if not, we need to fetch it
+          if (!users[payload.userId]) {
+            console.log('👀 [TYPING] User data not found, fetching user:', payload.userId);
+            // For now, create a placeholder user - in production you'd fetch from API
+            addUser({
+              id: payload.userId,
+              username: `User${payload.userId.slice(-4)}`,
+              displayName: `User ${payload.userId.slice(-4)}`,
+              avatarUrl: null,
+              walletAddress: null,
+              status: 'online',
+              lastSeen: new Date().toISOString(),
+              isVerified: false
+            });
+          }
+          
+          addTypingUser(channelId, {
+            userId: payload.userId,
+            channelId: payload.channelId,
+            timestamp: Date.now()
+          });
+        }
       }
     };
 
     const handleTypingStopped = (payload: any) => {
       if (payload.channelId === channelId) {
+        console.log('👀 [TYPING] User stopped typing:', {
+          userId: payload.userId,
+          channelId: payload.channelId,
+          currentChannelId: channelId
+        });
 
         const { removeTypingUser } = useChatStore.getState();
         removeTypingUser(channelId, payload.userId);
@@ -547,7 +588,7 @@ export default function MessageList({
         {/* Typing indicator */}
         {typingUsers.length > 0 && (
           <div className="flex justify-start">
-            <div className="bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] px-4 py-3 max-w-xs">
+            <div className=" px-4 py-3 max-w-xs">
               <TypingIndicator users={typingUsers} />
             </div>
           </div>

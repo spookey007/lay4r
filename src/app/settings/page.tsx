@@ -6,6 +6,7 @@ import { toast } from "react-hot-toast";
 import { getApiUrl } from "../../lib/config";
 import { apiFetch } from "../../lib/api";
 import AvatarUpload from "./AvatarUpload";
+import { useLisaSounds } from "../../lib/lisaSounds";
 
 interface User {
   id: string;
@@ -21,6 +22,7 @@ interface User {
 }
 
 export default function SettingsPage() {
+  const { playButtonClick, playHoverSound } = useLisaSounds();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -411,22 +413,23 @@ export default function SettingsPage() {
 
             <section>
               <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold mb-2">Avatar</h2>
+                <h2 className="text-lg font-semibold mb-2">Avatar (coming soon)</h2>
                 {((user?.avatarBlob || user?.avatarUrl) || avatarPreview) && (
                   <button
                     type="button"
                     onClick={handleRemoveAvatar}
+                    onMouseEnter={() => playHoverSound()}
                     className="text-xs text-red-600 hover:text-red-800"
                   >
                     Remove Avatar
                   </button>
                 )}
               </div>
-              <div className="border-2 border-dashed border-[#c8c8c8] rounded p-3 bg-[#fafafa]">
-                <AvatarUpload
+              <div className="border-2 border-dashed border-[#c8c8c8] rounded p-3 bg-[#fafafa] disabled">
+                {/* <AvatarUpload
                   onUpdate={handleAvatarChange}
                   currentAvatarUrl={avatarPreview || ""}
-                />
+                /> */}
               </div>
             </section>
 
@@ -434,6 +437,7 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={saving}
+                onMouseEnter={() => playHoverSound()}
                 className="flex-1 lisa-button lisa-button-primary disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Changes"}
@@ -441,6 +445,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => router.back()}
+                onMouseEnter={() => playHoverSound()}
                 className="flex-1 lisa-button lisa-button-secondary"
               >
                 Cancel
@@ -491,6 +496,7 @@ export default function SettingsPage() {
                   setOtpVerifying(false);
                 }
               }}
+              onMouseEnter={() => playHoverSound()}
               disabled={otpVerifying}
               className="lisa-button lisa-button-primary disabled:opacity-50"
             >
@@ -520,6 +526,7 @@ export default function SettingsPage() {
                   setOtpSending(false);
                 }
               }}
+              onMouseEnter={() => playHoverSound()}
               disabled={otpSending || resendCooldown > 0}
               className="lisa-button lisa-button-primary disabled:opacity-50"
             >

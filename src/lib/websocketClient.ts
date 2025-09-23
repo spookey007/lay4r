@@ -148,6 +148,11 @@ export class WebSocketClient {
             return;
           }
 
+          // Debug typing events
+          if (eventType === 'TYPING_STARTED' || eventType === 'TYPING_STOPPED') {
+            console.log(`[${this.protocolName}] 👀 Received ${eventType}:`, payload);
+          }
+
           const handlers = this.eventHandlers.get(eventType);
           if (handlers) {
             handlers.forEach(handler => {

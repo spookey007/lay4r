@@ -110,10 +110,21 @@ router.post('/login', async (req, res) => {
   // If user doesn't exist, create them as a regular user (role 1)
   let isNewUser = false;
   if (!user) {
+    // Generate a unique Reddit-style username and display name for new users
+    const { generateUniqueUsername } = require('../lib/usernameGenerator');
+    const { username, displayName } = await generateUniqueUsername();
+    
     user = await prisma.user.create({
-      data: { walletAddress, role: 1 }
+      data: { 
+        walletAddress, 
+        role: 1,
+        username: username,        // e.g., "BrilliantExplorer5678"
+        displayName: displayName  // e.g., "Brilliant Explorer"
+      }
     });
     isNewUser = true;
+    
+    console.log(`🎉 New user created with username: ${username} and display name: ${displayName}`);
   }
 
   const token = randomHex(32);
@@ -125,7 +136,7 @@ router.post('/login', async (req, res) => {
   if (isNewUser) {
     try {
       const chatService = require('../services/chatService');
-      await chatService.sendWelcomeMessage(user.id);
+      // await chatService.sendWelcomeMessage(user.id);
       console.log('🎉 Welcome message sent for new user:', user.id);
     } catch (error) {
       console.error('❌ Failed to send welcome message:', error);

@@ -7,6 +7,10 @@ import { useEffect, useState, useRef } from "react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
+import { useLisaSounds } from "@/lib/lisaSounds";
+import { animations, createHoverAnimation, createTapAnimation } from "@/lib/animations";
+import SoundSettings from "@/components/SoundSettings";
 
 export default function Header() {
   const pathname = usePathname();
@@ -15,9 +19,12 @@ export default function Header() {
   const { publicKey, signMessage, connected } = useWallet();
   const [user, setUser] = useState<any>(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showSoundSettings, setShowSoundSettings] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { playMenuClick, playButtonClick, playLinkClick, playHoverSound } = useLisaSounds();
 
   useEffect(() => {
+    console.log("Header useEffect - connected:", connected, "publicKey:", publicKey?.toString());
     if (connected && publicKey) {
       login();
     } else {
@@ -26,7 +33,7 @@ export default function Header() {
         .then(({ authService }) =>
           authService.fetchUser()
             .then((user) => {
-              // console.log("Header user data:", user);
+              console.log("Header user data from authService:", user);
               setUser(user);
             })
             .catch(() => {})
@@ -86,7 +93,18 @@ export default function Header() {
 
     const data = await loginRes.json();
     console.log("Login response data:", data);
+    console.log("User data received:", {
+      username: data.user?.username,
+      displayName: data.user?.displayName,
+      walletAddress: data.user?.walletAddress
+    });
     setUser(data.user ?? null);
+    
+    // Force refresh authService with new user data
+    if (data.user) {
+      const { authService } = await import("@/lib/authService");
+      authService.setUser(data.user);
+    }
   }
 
   async function logout() {
@@ -114,7 +132,13 @@ export default function Header() {
   };
 
   return (
-    <header className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-[#808080] pb-4 mb-6 gap-4 px-4 sm:px-6 pt-6 bg-[#fff] w-full" style={{ fontFamily: "'LisaStyle', monospace" }}>
+    <motion.header 
+      className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-[#808080] pb-4 mb-6 gap-4 px-4 sm:px-6 pt-6 bg-[#fff] w-full" 
+      style={{ fontFamily: "'LisaStyle', monospace" }}
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 400, damping: 40 }}
+    >
       <div className="flex items-center gap-3">
         <div className="border-2 border-[#808080] bg-[#f0f0f0] rounded-lg p-1">
           <Image src="/logo.jpg" alt="Layer4 Logo" width={40} height={40} className="rounded" />
@@ -122,38 +146,150 @@ export default function Header() {
         <span className="text-2xl font-bold font-[Courier_New,monospace] tracking-tight">Layer4</span>
       </div>
       <nav className="flex gap-1 text-base bg-[#f0f0f0] border-2 border-[#808080] rounded">
-        <Link
-          href="/"
-          className={`flex items-center gap-2 font-semibold px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/" ? "bg-[#0000ff] text-white" : ""}`}
+        <motion.div
+           whileHover={{ 
+            scale: 1.08, 
+            y: -4,
+            transition: { 
+              type: "tween",
+              ease: "easeOut",   // Fast in
+              duration: 0.12
+            }
+          }}
+          whileTap={{ 
+            scale: 0.95, 
+            y: 2,
+            transition: { 
+              type: "tween", 
+              ease: "easeOut", 
+              duration: 0.08 
+            }
+          }}
+          // 👇 CRITICAL: Add exit transition for instant snap-back
+          transition={{ 
+            type: "tween",
+            ease: "easeIn",    // Fast out — snaps back instantly
+            duration: 0.15
+          }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          // Keep your initial entrance spring if you like — it’s separate
+          exit={{ opacity: 0, y: 20 }}
         >
-          🏠 Home
-        </Link>
-        <Link
-          href="/whitepaper"
-          className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/whitepaper" ? "bg-[#0000ff] text-white" : ""}`}
-        >
-          📄 Whitepaper
-        </Link>
-        <Link
-          href="/motherboard"
-          className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/motherboard" ? "bg-[#0000ff] text-white" : ""}`}
-        >
-          🖥️ Motherboard
-        </Link>
-        {(user?.isAdmin || user?.role === 0) && (
           <Link
-            href="/dashboard"
-            className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors ${pathname === "/dashboard" ? "bg-[#0000ff] text-white" : ""}`}
+            href="/"
+            onClick={() => playLinkClick()}
+            onMouseEnter={() => playHoverSound()}
+            className={`flex items-center gap-2 font-semibold px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/" ? "bg-[#0000ff] text-white" : ""}`}
           >
-            📊 Dashboard
+            🏠 Home
           </Link>
+        </motion.div>
+        <motion.div
+           whileHover={{ 
+            scale: 1.08, 
+            y: -4,
+            transition: { 
+              type: "tween",
+              ease: "easeOut",   // Fast in
+              duration: 0.12
+            }
+          }}
+          whileTap={{ 
+            scale: 0.95, 
+            y: 2,
+            transition: { 
+              type: "tween", 
+              ease: "easeOut", 
+              duration: 0.08 
+            }
+          }}
+          // 👇 CRITICAL: Add exit transition for instant snap-back
+          transition={{ 
+            type: "tween",
+            ease: "easeIn",    // Fast out — snaps back instantly
+            duration: 0.15
+          }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          // Keep your initial entrance spring if you like — it’s separate
+          exit={{ opacity: 0, y: 20 }}
+        >
+          <Link
+            href="/whitepaper"
+            onClick={() => playLinkClick()}
+            onMouseEnter={() => playHoverSound()}
+            className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/whitepaper" ? "bg-[#0000ff] text-white" : ""}`}
+          >
+            📄 Whitepaper
+          </Link>
+        </motion.div>
+        <motion.div
+           whileHover={{ 
+            scale: 1.08, 
+            y: -4,
+            transition: { 
+              type: "tween",
+              ease: "easeOut",   // Fast in
+              duration: 0.12
+            }
+          }}
+          whileTap={{ 
+            scale: 0.95, 
+            y: 2,
+            transition: { 
+              type: "tween", 
+              ease: "easeOut", 
+              duration: 0.08 
+            }
+          }}
+          // 👇 CRITICAL: Add exit transition for instant snap-back
+          transition={{ 
+            type: "tween",
+            ease: "easeIn",    // Fast out — snaps back instantly
+            duration: 0.15
+          }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          // Keep your initial entrance spring if you like — it’s separate
+          exit={{ opacity: 0, y: 20 }}
+        >
+          <Link
+            href="/motherboard"
+            onClick={() => playLinkClick()}
+            onMouseEnter={() => playHoverSound()}
+            className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors border-r border-[#808080] ${pathname === "/motherboard" ? "bg-[#0000ff] text-white" : ""}`}
+          >
+            🖥️ Motherboard
+          </Link>
+        </motion.div>
+        {(user?.isAdmin || user?.role === 0) && (
+          <motion.div
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Link
+              href="/dashboard"
+              onClick={() => playLinkClick()}
+              onMouseEnter={() => playHoverSound()}
+              className={`flex items-center gap-2 px-4 py-2 hover:bg-[#0000ff] hover:text-white transition-colors ${pathname === "/dashboard" ? "bg-[#0000ff] text-white" : ""}`}
+            >
+              📊 Dashboard
+            </Link>
+          </motion.div>
         )}
       </nav>
       <div className="flex items-center gap-2">
         {connected && publicKey ? (
           <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+            <motion.button
+              onClick={() => {
+                playMenuClick();
+                setShowProfileDropdown(!showProfileDropdown);
+              }}
+              onMouseEnter={() => playHoverSound()}
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
               className="flex items-center gap-2 bg-[#f0f0f0] border-2 border-[#808080] rounded px-3 py-2 hover:bg-[#e0e0e0] transition-colors"
             >
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold overflow-hidden">
@@ -171,13 +307,20 @@ export default function Header() {
                 )}
               </div>
               <span className="text-sm font-semibold">
-                {user?.username ?? publicKey.toBase58().slice(0, 4) + "…" + publicKey.toBase58().slice(-4)}
+                {user?.displayName ?? user?.username ?? publicKey.toBase58().slice(0, 4) + "…" + publicKey.toBase58().slice(-4)}
               </span>
               <span className="text-xs">▼</span>
-            </button>
+            </motion.button>
 
-            {showProfileDropdown && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white border-2 border-[#808080] rounded shadow-lg z-50">
+            <AnimatePresence>
+              {showProfileDropdown && (
+                <motion.div 
+                  className="absolute right-0 top-full mt-1 w-48 bg-white border-2 border-[#808080] rounded shadow-lg z-50"
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 50 }}
+                >
                 <div className="p-2 border-b border-[#808080]">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold overflow-hidden">
@@ -195,7 +338,7 @@ export default function Header() {
                       )}
                     </div>
                     <div className="text-sm font-semibold">
-                      {user?.username ?? "User"}
+                      {user?.displayName ?? user?.username ?? "User"}
                     </div>
                   </div>
                   <div className="text-xs text-gray-600">
@@ -221,21 +364,72 @@ export default function Header() {
                   )}
                   <button
                     onClick={() => {
+                      playMenuClick();
                       setShowProfileDropdown(false);
                       router.push("/settings");
                     }}
+                    onMouseEnter={() => playHoverSound()}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-[#f0f0f0] rounded"
                   >
                     ⚙️ Settings
                   </button>
+                  <button
+                    onClick={() => {
+                      playMenuClick();
+                      setShowSoundSettings(!showSoundSettings);
+                    }}
+                    onMouseEnter={() => playHoverSound()}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-[#f0f0f0] rounded"
+                  >
+                    🔊 Sound Settings
+                  </button>
                 </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : (
-          <button onClick={login} className="lisa-button lisa-button-primary">Connect Wallet</button>
+          <motion.button
+            onClick={() => {
+              playButtonClick();
+              login();
+            }}
+            onMouseEnter={() => playHoverSound()}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            className="lisa-button lisa-button-primary"
+          >
+            Connect Wallet
+          </motion.button>
         )}
       </div>
-    </header>
+
+      {/* Sound Settings Modal */}
+      {showSoundSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white border-2 border-black w-full max-w-md shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b-2 border-black bg-blue-200 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-black font-mono">SOUND SETTINGS</h3>
+                <button 
+                  onClick={() => {
+                    playMenuClick();
+                    setShowSoundSettings(false);
+                  }}
+                  className="text-black hover:text-red-600 p-1 border border-black bg-white hover:bg-red-200 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 flex-1 overflow-y-auto">
+              <SoundSettings />
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.header>
   );
 }

@@ -9,6 +9,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ChatSidebar from './chat/ChatSidebar';
 import MessageList from './chat/MessageList';
 import MessageInput from './chat/MessageInput';
+import { useLisaSounds } from '@/lib/lisaSounds';
+import { animations, createHoverAnimation, createTapAnimation } from '@/lib/animations';
+import { useAuth } from '@/lib/authService';
 
 const queryClient = new QueryClient();
 
@@ -28,6 +31,11 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
   const [showChatView, setShowChatView] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [showUserInfo, setShowUserInfo] = useState(false);
+  const [showUserSearch, setShowUserSearch] = useState(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [modalSearchResults, setModalSearchResults] = useState<any[]>([]);
+  const [isModalSearching, setIsModalSearching] = useState(false);
+  const [isCreatingDM, setIsCreatingDM] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { 
@@ -39,9 +47,14 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
     currentUser,
     channels
   } = useChatStore();
+  
+  // Get current user from auth service for more reliable user data
+  const { user: authUser } = useAuth();
+  const currentUserData = authUser || currentUser;
 
   const { on, off } = useWebSocket();
   const { joinChannel } = useChatEvents();
+  const { playButtonClick, playMenuClick, playChatSound, playChatCloseSound, playHoverSound } = useLisaSounds();
   
   // Use Solana wallet connection state
   const { connected, publicKey } = useWallet();
@@ -125,12 +138,124 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
     setSelectedUser(null);
   };
 
+  const handleOpenNewMessage = () => {
+    setShowUserSearch(true);
+    setModalSearchQuery('');
+    setModalSearchResults([]);
+  };
+
+  const handleCloseNewMessage = () => {
+    setShowUserSearch(false);
+    setModalSearchQuery('');
+    setModalSearchResults([]);
+  };
+
+  const handleModalUserClick = async (user: any) => {
+    // Don't allow messaging yourself
+    if (user.id === currentUserData?.id) {
+      return;
+    }
+
+    // Prevent multiple clicks while creating DM
+    if (isCreatingDM) {
+      return;
+    }
+
+    setIsCreatingDM(true);
+    try {
+      // First check if DM already exists locally for instant response
+      const existingChannel = channels.find(channel => 
+        channel.type === 'dm' && 
+        channel.members?.some((member: any) => member.userId === user.id)
+      );
+
+      if (existingChannel) {
+        // Switch to existing DM channel immediately
+        handleChannelSelect(existingChannel.id);
+        handleCloseNewMessage();
+        return;
+      }
+
+      // Create new DM channel with duplicate prevention
+      const { apiFetch } = await import('@/lib/api');
+      const response = await apiFetch('/chat/dm/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          preventDuplicates: true // Flag for backend duplicate prevention
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        handleChannelSelect(data.channel.id);
+        handleCloseNewMessage();
+      } else {
+        const errorData = await response.json();
+        if (errorData.error === 'DUPLICATE_DM') {
+          // DM already exists, find and switch to it
+          const duplicateChannel = channels.find(channel => 
+            channel.type === 'dm' && 
+            channel.members?.some((member: any) => member.userId === user.id)
+          );
+          if (duplicateChannel) {
+            handleChannelSelect(duplicateChannel.id);
+            handleCloseNewMessage();
+          }
+        } else {
+          console.error('Failed to create DM channel:', errorData);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating/opening DM:', error);
+    } finally {
+      setIsCreatingDM(false);
+    }
+  };
+
+  const searchModalUsers = async (query: string) => {
+    if (!query.trim()) {
+      setModalSearchResults([]);
+      return;
+    }
+
+    setIsModalSearching(true);
+    try {
+      const { apiFetch } = await import('@/lib/api');
+      const response = await apiFetch(`/chat/search-users?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      const users = data.users || [];
+      
+      // Filter out current user from search results with robust comparison
+      const filteredUsers = users.filter((user: any) => {
+        // Only filter if currentUserData exists and has an ID
+        if (!currentUserData?.id) {
+          return true;
+        }
+        
+        const isCurrentUser = user.id === currentUserData.id || 
+                             user.walletAddress === currentUserData.walletAddress ||
+                             user.username === currentUserData.username;
+        return !isCurrentUser;
+      });
+      setModalSearchResults(filteredUsers);
+    } catch (error) {
+      console.error('Search error:', error);
+      setModalSearchResults([]);
+    } finally {
+      setIsModalSearching(false);
+    }
+  };
+
   const canShow = useMemo(() => connected, [connected]);
 
   // Get the other user's data for DM channels
   const getOtherUser = (channel: any) => {
     if (channel.type === 'dm') {
-      return channel.members?.find((member: any) => member.userId !== currentUser?.id)?.user;
+      return channel.members?.find((member: any) => member.userId !== currentUserData?.id)?.user;
     }
     return null;
   };
@@ -177,12 +302,17 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
       <AnimatePresence>
         {!open && (
           <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setOpen(true)}
+            initial={{ scale: 0, opacity: 0, rotate: -180 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            exit={{ scale: 0, opacity: 0, rotate: 180 }}
+            whileHover={{ scale: 1.1, y: -3 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => {
+              playButtonClick();
+              setOpen(true);
+            }}
+            onMouseEnter={() => playHoverSound()}
+            transition={{ type: "spring", stiffness: 600, damping: 25 }}
             aria-label="Open chat"
             className="fixed bottom-4 right-4 z-50 w-16 h-16 bg-black hover:bg-gray-800 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300"
             style={{ 
@@ -218,12 +348,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 300, 
-              damping: 30,
-              duration: 0.4
-            }}
+            transition={{ type: "spring", stiffness: 500, damping: 50 }}
             className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-50 w-full h-full md:w-[600px] lg:w-[700px] md:h-[600px] lg:h-[700px] md:max-h-[90vh] p-0"
             style={{
               transformOrigin: "bottom right"
@@ -237,7 +362,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                     <span className="text-xl">💬</span>
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Mainnet Chat</h3>
+                    <h3 className="font-bold text-lg">Mainnet Chat (beta)</h3>
                     {/* <div className="flex items-center gap-2 text-sm text-gray-300">
                       <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
                       <span>{isConnected ? 'Connected' : 'Connecting...'}</span>
@@ -248,7 +373,11 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                   {/* Mobile sidebar toggle */}
                   <button 
                     className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    onClick={() => setShowSidebar(!showSidebar)}
+                    onClick={() => {
+                      playMenuClick();
+                      setShowSidebar(!showSidebar);
+                    }}
+                    onMouseEnter={() => playHoverSound()}
                     aria-label="Toggle sidebar"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,7 +385,11 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                     </svg>
                   </button>
                   <button 
-                    onClick={() => setOpen(false)}
+        onClick={() => {
+          playChatCloseSound();
+          setOpen(false);
+        }}
+        onMouseEnter={() => playHoverSound()}
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                     aria-label="Close chat"
                   >
@@ -302,19 +435,47 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                         <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to Mainnet Chat</h3>
                         <p className="text-gray-500 mb-6">Select a channel from the sidebar to start chatting with the Layer4 community</p>
                         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                          <div 
+                          {/* <motion.div 
                             className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-white"
                             onClick={() => {
+                              playButtonClick();
+                              handleOpenNewMessage();
                               if (window.innerWidth < 768) {
                                 setShowSidebar(true);
                               }
+                            }}
+                            onMouseEnter={() => playHoverSound()}
+                            whileHover={{ 
+                              scale: 1.02, 
+                              y: -2,
+                              transition: { 
+                                type: "tween",
+                                ease: "easeOut",
+                                duration: 0.2
+                              }
+                            }}
+                            whileTap={{ 
+                              scale: 0.98,
+                              transition: { 
+                                type: "tween", 
+                                ease: "easeOut", 
+                                duration: 0.1 
+                              }
+                            }}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ 
+                              type: "spring", 
+                              stiffness: 400, 
+                              damping: 40,
+                              delay: 0.1
                             }}
                           >
                             <div className="text-2xl mb-2">👥</div>
                             <p className="text-sm font-medium text-gray-700">Find People</p>
                             <p className="text-xs text-gray-500">Search for users to chat with</p>
-                          </div>
-                          <div 
+                          </motion.div> */}
+                          {/* <div 
                             className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-white"
                             onClick={() => {
                               if (window.innerWidth < 768) {
@@ -325,7 +486,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                             <div className="text-2xl mb-2">🏠</div>
                             <p className="text-sm font-medium text-gray-700">Join Channels</p>
                             <p className="text-xs text-gray-500">Participate in group discussions</p>
-                          </div>
+                          </div> */}
                         </div>
                       </div>
                     </div>
@@ -337,6 +498,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                           {/* Back to channels button */}
                           <button
                             onClick={handleBackToChannels}
+                            onMouseEnter={() => playHoverSound()}
                             className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
                             title="Back to Channels"
                           >
@@ -347,7 +509,11 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
 
                           {!showSidebar && (
                             <button
-                              onClick={() => setShowSidebar(true)}
+                              onClick={() => {
+                                playMenuClick();
+                                setShowSidebar(true);
+                              }}
+                              onMouseEnter={() => playHoverSound()}
                               className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
                               aria-label="Show sidebar"
                             >
@@ -379,28 +545,29 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setShowMembersList(!showMembersList)}
-                            className="hidden md:flex p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
-                            title="Show members"
+                            onMouseEnter={() => playHoverSound()}
+                            className="flex p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
+                            title={showMembersList ? "Hide members" : "Show members"}
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                             </svg>
                           </button>
-                          <button
-                            onClick={() => setShowSidebar(!showSidebar)}
+                          {/* <button
+                            onClick={() => setShowMembersList(!showSidebar)}
                             className="hidden md:flex p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
                             title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showSidebar ? "M11 19l-7-7 7-7m8 14l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
                             </svg>
-                          </button>
+                          </button> */}
                         </div>
                       </div>
 
-                      <div className="flex-1 flex min-h-0">
+                      <div className="flex-1 flex min-h-0 overflow-hidden">
                         {/* Messages */}
-                        <div className="flex-1 bg-gray-50">
+                        <div className="flex-1 bg-gray-50 min-w-0">
                           <MessageList 
                             channelId={currentChannelId} 
                             messagesEndRef={messagesEndRef}
@@ -412,9 +579,19 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
 
                         {/* Members List */}
                         {showMembersList && (
-                          <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-                            <div className="p-4 border-b border-gray-200">
-                              <h3 className="font-semibold text-gray-900">Members</h3>
+                          <div className="bg-white border-l border-gray-200 flex flex-col flex-shrink-0 shadow-lg w-80 min-w-80">
+                            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
+                              <h3 className="font-semibold text-gray-900 text-sm">Members</h3>
+                              <button
+                                onClick={() => setShowMembersList(false)}
+                                onMouseEnter={() => playHoverSound()}
+                                className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors border-2 border-black shadow-lg flex items-center justify-center min-w-[40px] min-h-[40px]"
+                                title="Close members list"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-2">
                               <div className="space-y-1">
@@ -422,7 +599,8 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                                   <button
                                     key={member.id}
                                     onClick={() => handleUserClick(member.user)}
-                                    className="w-full p-3 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                    onMouseEnter={() => playHoverSound()}
+                                    className="w-full p-3 hover:bg-blue-50 rounded-lg flex items-center gap-3 transition-colors border border-transparent hover:border-blue-200"
                                   >
                                     <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold overflow-hidden">
                                       {member.user?.avatarUrl ? (
@@ -480,6 +658,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                 <h3 className="text-lg font-bold text-black font-mono">USER INFO</h3>
                 <button 
                   onClick={handleCloseUserInfo}
+                  onMouseEnter={() => playHoverSound()}
                   className="text-black hover:text-red-600 p-1 border border-black bg-white hover:bg-red-200 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -582,6 +761,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                         console.error('Error starting DM:', error);
                       }
                     }}
+                    onMouseEnter={() => playHoverSound()}
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors font-mono"
                   >
                     START DM
@@ -589,6 +769,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                 )}
                 <button
                   onClick={handleCloseUserInfo}
+                  onMouseEnter={() => playHoverSound()}
                   className={`${selectedUser?.id !== currentUser?.id ? 'flex-1' : 'w-full'} bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors font-mono`}
                 >
                   CLOSE
@@ -596,6 +777,116 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* User Search Modal */}
+      {showUserSearch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <motion.div 
+            className="bg-white border-2 border-black w-full max-w-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-[90vh] flex flex-col overflow-hidden"
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: "spring", stiffness: 400, damping: 40 }}
+          >
+            <div className="p-4 border-b-2 border-black bg-blue-200 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-black font-mono">NEW MESSAGE</h3>
+                <button 
+                  onClick={handleCloseNewMessage}
+                  onMouseEnter={() => playHoverSound()}
+                  className="text-black hover:text-red-600 p-1 border border-black bg-white hover:bg-red-200 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4 border-b-2 border-black bg-blue-100 flex-shrink-0">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="🔍 SEARCH BY USERNAME..."
+                  value={modalSearchQuery}
+                  onChange={(e) => {
+                    setModalSearchQuery(e.target.value);
+                    searchModalUsers(e.target.value);
+                  }}
+                  className="w-full pl-8 pr-6 py-2 text-xs border-2 border-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-black font-mono font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                />
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {isModalSearching && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-black border-t-white animate-spin"></div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 bg-white">
+              {modalSearchResults.length > 0 ? (
+                <div className="space-y-2">
+                  {modalSearchResults.map((user) => (
+                     <button
+                       key={user.id}
+                       onClick={() => handleModalUserClick(user)}
+                       disabled={isCreatingDM}
+                       onMouseEnter={() => !isCreatingDM && playHoverSound()}
+                       className="w-full p-3 text-left hover:bg-blue-200 active:bg-blue-300 transition-colors group border border-black disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                     >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-green-500 border-2 border-black flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                          {user.avatarUrl ? (
+                            <img 
+                              src={user.avatarUrl} 
+                              alt={user.displayName || user.username || 'User'} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            (user.displayName || user.username || 'U').charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-black text-sm font-mono truncate">
+                            {user.displayName || user.username || 'Unknown User'}
+                          </div>
+                          <div className="text-xs text-gray-600 font-mono truncate">
+                            @{user.username || 'unknown'}
+                          </div>
+                        </div>
+                         <div className="flex items-center gap-1">
+                           {isCreatingDM ? (
+                             <>
+                               <div className="w-4 h-4 border-2 border-black border-t-white animate-spin"></div>
+                               <span className="text-xs text-black font-mono">OPENING...</span>
+                             </>
+                           ) : (
+                             <>
+                               <div className="w-2 h-2 bg-green-500 border border-black"></div>
+                               <span className="text-xs text-black font-mono">ONLINE</span>
+                             </>
+                           )}
+                         </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : modalSearchQuery.trim() ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500 font-mono text-sm">No users found</div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-gray-500 font-mono text-sm">Search for users to start a conversation</div>
+                </div>
+              )}
+            </div>
+          </motion.div>
         </div>
       )}
     </>

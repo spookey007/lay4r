@@ -23,6 +23,7 @@ export default function MessageInput({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,17 +108,26 @@ export default function MessageInput({
     }
     
     if (content.trim()) {
-      startTyping(channelId);
+      if (!isTyping) {
+        console.log('👀 [TYPING] Current user started typing:', {
+          channelId,
+          currentUserId: currentUser?.id,
+          content: content.trim()
+        });
+        setIsTyping(true);
+        startTyping(channelId);
+      }
       
       // Clear existing timeout
       if (typingTimeout) {
         clearTimeout(typingTimeout);
       }
       
-      // Set new timeout to stop typing
+      // Set new timeout to stop typing (reduced from 3s to 2s for better responsiveness)
       const newTimeout = setTimeout(() => {
+        setIsTyping(false);
         stopTyping(channelId);
-      }, 3000); // Stop typing after 3 seconds of inactivity
+      }, 2000); // Stop typing after 2 seconds of inactivity
       
       setTypingTimeout(newTimeout);
     } else {
@@ -125,7 +135,10 @@ export default function MessageInput({
         clearTimeout(typingTimeout);
         setTypingTimeout(null);
       }
-      stopTyping(channelId);
+      if (isTyping) {
+        setIsTyping(false);
+        stopTyping(channelId);
+      }
     }
 
     return () => {
@@ -231,6 +244,7 @@ export default function MessageInput({
       clearTimeout(typingTimeout);
       setTypingTimeout(null);
     }
+    setIsTyping(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -322,7 +336,7 @@ export default function MessageInput({
   }
 
   return (
-    <div className="bg-gradient-to-r from-yellow-300 to-orange-400 border-t-4 border-black shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
+    <div className=" border-t-4 border-black shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
       {/* Reply indicator */}
       {replyToMessage && (
         <div className="px-4 py-2 bg-green-300 border-b-2 border-black">
@@ -447,6 +461,19 @@ export default function MessageInput({
               maxLength={maxLength}
               disabled={isUploading}
             />
+            
+            {/* Typing indicator */}
+            {/* {isTyping && (
+              <div className="absolute top-2 right-2 flex items-center gap-1 text-xs text-black bg-yellow-300 px-2 py-1 border border-black font-bold font-mono shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] rounded">
+                <div className="flex space-x-1">
+                  <div className="w-1 h-1 bg-black animate-bounce"></div>
+                  <div className="w-1 h-1 bg-black animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-1 h-1 bg-black animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                <span>typing...</span>
+              </div>
+            )} */}
+            
             <div className="absolute bottom-2 right-2 flex items-center gap-2">
               <input
                 ref={fileInputRef}
