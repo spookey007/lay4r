@@ -9,7 +9,10 @@ export class LisaSoundManager {
   private volume: number = 0.3;
 
   private constructor() {
-    this.initializeAudioContext();
+    // Don't initialize audio context during SSR
+    if (typeof window !== 'undefined') {
+      this.initializeAudioContext();
+    }
   }
 
   public static getInstance(): LisaSoundManager {
@@ -19,8 +22,18 @@ export class LisaSoundManager {
     return LisaSoundManager.instance;
   }
 
+  public async ensureAudioContext(): Promise<void> {
+    if (!this.audioContext && typeof window !== 'undefined') {
+      await this.initializeAudioContext();
+    }
+  }
+
   private async initializeAudioContext() {
     try {
+      if (typeof window === 'undefined') {
+        console.warn('Audio context initialization skipped: window not available');
+        return;
+      }
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       await this.loadSounds();
     } catch (error) {
@@ -203,7 +216,12 @@ export class LisaSoundManager {
   }
 
   public async playSound(soundName: string): Promise<void> {
-    if (!this.isEnabled || !this.audioContext) return;
+    if (!this.isEnabled) return;
+
+    // Ensure audio context is initialized
+    await this.ensureAudioContext();
+    
+    if (!this.audioContext) return;
 
     try {
       const sound = this.sounds.get(soundName);
