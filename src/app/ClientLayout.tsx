@@ -20,7 +20,7 @@ export default function ClientLayout({
   const endpoint = "https://api.mainnet-beta.solana.com";
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
   return (
-    // <Loader>
+    <Loader>
       <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={wallets} autoConnect>
           <WalletModalProvider>
@@ -39,6 +39,6 @@ export default function ClientLayout({
           </WalletModalProvider>
         </WalletProvider>
       </ConnectionProvider>
-    // </Loader>
+    </Loader>
   );
 }
