@@ -35,6 +35,7 @@ export class WebSocketClient {
     lastConnectedAt: null,
     lastError: null
   };
+  private connectionLock = false;
 
   private getToken: () => Promise<string | null>;
 
@@ -45,6 +46,11 @@ export class WebSocketClient {
 
   async connect(): Promise<void> {
     // Prevent multiple simultaneous connection attempts
+    if (this.connectionLock) {
+      console.log(`[${this.protocolName}] 🔒 Connection locked, skipping duplicate attempt`);
+      return;
+    }
+
     if (this.connectionState.isConnecting) {
       console.log(`[${this.protocolName}] 🔄 Connection already in progress, skipping duplicate attempt`);
       return;
@@ -54,6 +60,15 @@ export class WebSocketClient {
       console.log(`[${this.protocolName}] 🔄 Connection already active, state: ${this.ws.readyState}`);
       return;
     }
+
+    // Check if we're manually disconnected
+    if (this.isManuallyDisconnected) {
+      console.log(`[${this.protocolName}] ⛔ Manual disconnect active, skipping connection`);
+      return;
+    }
+
+    // Set connection lock
+    this.connectionLock = true;
 
     this.updateConnectionState({
       isConnecting: true,
@@ -92,6 +107,8 @@ export class WebSocketClient {
       if (this.ws) {
         console.log(`[${this.protocolName}] 🧹 Cleaning up previous connection`);
         this.disconnect(false);
+        // Wait a bit for cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
       console.log(`[${this.protocolName}] 🚀 Establishing connection to ${socketUrl}...`);
@@ -117,6 +134,7 @@ export class WebSocketClient {
         this.flushQueue();
         this.startHeartbeat();
         this.isManuallyDisconnected = false;
+        this.connectionLock = false; // Release lock on successful connection
 
         // Send initial ping
         this.sendMessage('PING', { 
@@ -178,6 +196,7 @@ export class WebSocketClient {
         });
 
         this.ws = null;
+        this.connectionLock = false; // Release lock on connection close
         this.updateConnectionState({ 
           isConnected: false, 
           isConnecting: false 
@@ -196,6 +215,7 @@ export class WebSocketClient {
 
       this.ws.onerror = (error) => {
         console.error(`[${this.protocolName}] 💥 WebSocket error:`, error);
+        this.connectionLock = false; // Release lock on error
         this.updateConnectionState({ 
           lastError: 'WebSocket connection error' 
         });
@@ -203,6 +223,7 @@ export class WebSocketClient {
 
     } catch (error) {
       console.error(`[${this.protocolName}] 💥 Connection setup failed:`, error);
+      this.connectionLock = false; // Release lock on error
       this.updateConnectionState({ 
         isConnecting: false, 
         lastError: error instanceof Error ? error.message : 'Connection setup failed' 
@@ -267,6 +288,7 @@ export class WebSocketClient {
 
   disconnect(manual = true): void {
     this.isManuallyDisconnected = manual;
+    this.connectionLock = false; // Release lock on disconnect
     
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);

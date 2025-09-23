@@ -60,44 +60,25 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   publicKeyRef.current = publicKey;
 
   const getToken = useCallback(async (): Promise<string | null> => {
+    if (!connected || !publicKey) return null;
+
     try {
-      // First, try to get the session token from cookies directly
+      const { authService } = await import('@/lib/authService');
+      const user = await authService.fetchUser();
+      if (!user) return null;
+
       const cookies = document.cookie.split(';');
       for (const cookie of cookies) {
         const [name, value] = cookie.trim().split('=');
         if (name === 'l4_session') {
-          const token = decodeURIComponent(value);
-          console.log('[WebSocketProvider] 🔑 Found session token in cookies');
-          return token;
+          return decodeURIComponent(value);
         }
       }
-
-      // If no cookie found, check if we have a wallet connection and try to fetch user
-      if (connected && publicKey) {
-        console.log('[WebSocketProvider] 🔑 No session cookie, trying to fetch user with wallet connection');
-        const { authService } = await import('@/lib/authService');
-        const user = await authService.fetchUser();
-        if (user) {
-          // Try to get the cookie again after fetching user (it might have been set)
-          const cookies = document.cookie.split(';');
-          for (const cookie of cookies) {
-            const [name, value] = cookie.trim().split('=');
-            if (name === 'l4_session') {
-              const token = decodeURIComponent(value);
-              console.log('[WebSocketProvider] 🔑 Found session token after user fetch');
-              return token;
-            }
-          }
-        }
-      }
-
-      console.log('[WebSocketProvider] 🔑 No authentication token available');
-      return null;
     } catch (err) {
       console.error('[WebSocketProvider] Token fetch error:', err);
-      return null;
     }
-  }, []); // Remove dependencies to prevent recreation
+    return null;
+  }, [connected, publicKey]);
 
   const initClient = useCallback(() => {
     // Only create a new client if we don't have one or it's not connected
@@ -145,33 +126,35 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       return;
     }
   
-    // Try to get a token first to check if we're authenticated
-    const token = await getToken();
-    if (!token) {
-      console.log('[WebSocketProvider] ❌ No authentication token available');
+    // Check authentication
+    if (!connectedRef.current || !publicKeyRef.current) {
+      console.log('[WebSocketProvider] ❌ Not authenticated');
       return;
     }
   
     console.log('[WebSocketProvider] 🚀 Initiating connection...', {
-      hasWallet: connectedRef.current && publicKeyRef.current,
-      hasToken: !!token,
+      publicKey: publicKeyRef.current.toString(),
       timestamp: new Date().toISOString()
     });
   
     isConnectingRef.current = true;
   
     try {
-      // Cleanup existing client
-      if (clientRef.current) {
+      // Cleanup existing client only if it exists and is not connected
+      if (clientRef.current && !clientRef.current.isConnected()) {
         console.log('[WebSocketProvider] 🧹 Cleaning up previous client');
         clientRef.current.disconnect();
+        // Wait a bit for cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
   
-      // Initialize new client
-      initClient();
+      // Initialize new client only if we don't have one or it's not connected
+      if (!clientRef.current || !clientRef.current.isConnected()) {
+        initClient();
+      }
   
-      // Connect if client was created
-      if (clientRef.current) {
+      // Connect if client was created and not already connected
+      if (clientRef.current && !clientRef.current.isConnected()) {
         console.log('[WebSocketProvider] 🤝 Attempting connection');
         await clientRef.current.connect();
       }
@@ -181,7 +164,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     } finally {
       isConnectingRef.current = false;
     }
-  }, [getToken, initClient, toast]);
+  }, [initClient, toast]);
 
   // Sync isConnected state with client
 // ✅ ADD THIS — Sync connection state IMMEDIATELY and on tab focus
@@ -200,16 +183,12 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         syncConnectionState();
-        // Try to connect when tab becomes visible
-        connectIfAuthenticated();
       }
     };
 
     // Listen to window focus (user clicks back into browser)
     const handleWindowFocus = () => {
       syncConnectionState();
-      // Try to connect when window gains focus
-      connectIfAuthenticated();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -218,26 +197,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     // Initial sync on mount
     syncConnectionState();
 
-    // Try to connect after a short delay to ensure page is fully loaded
-    const initialConnectionTimeout = setTimeout(() => {
-      connectIfAuthenticated();
-    }, 1000);
-
-    // Set up periodic connection attempts (every 30 seconds)
-    const connectionInterval = setInterval(() => {
-      if (!clientRef.current?.isConnected() && !isConnectingRef.current) {
-        console.log('[WebSocketProvider] 🔄 Periodic connection attempt');
-        connectIfAuthenticated();
-      }
-    }, 30000);
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
-      clearInterval(connectionInterval);
-      clearTimeout(initialConnectionTimeout);
     };
-  }, [connectIfAuthenticated]); // ✅ Include connectIfAuthenticated in dependencies
+  }, []); // ✅ Empty dependency array — runs once on mount
 
   const sendMessage = useCallback((event: ClientEvent, payload: any) => {
     clientRef.current?.sendMessage(event, payload);
@@ -260,7 +224,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     return clientRef.current?.getConnectionMetrics() || null;
   }, []);
 
-  // Auto-connect on wallet connect with debounce
+  // Auto-connect on wallet connect with improved state management
   useEffect(() => {
     console.log('[WebSocketProvider] 🔄 Wallet state changed', {
       connected,
@@ -275,10 +239,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }
 
     if (connected && publicKey) {
-      // Add delay to prevent rapid connection attempts
-      connectionTimeoutRef.current = setTimeout(() => {
-        connectIfAuthenticated();
-      }, 1000);
+      // Only connect if we're not already connected or connecting
+      if (!clientRef.current?.isConnected() && !isConnectingRef.current) {
+        // Add delay to prevent rapid connection attempts
+        connectionTimeoutRef.current = setTimeout(() => {
+          connectIfAuthenticated();
+        }, 1000);
+      } else {
+        console.log('[WebSocketProvider] ⏸️ Skipping connection - already connected or connecting');
+      }
     } else {
       console.log('[WebSocketProvider] 🔌 Disconnecting due to wallet disconnect');
       isConnectingRef.current = false;
