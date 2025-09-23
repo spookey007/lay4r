@@ -186,10 +186,15 @@ function startServer() {
         return callback(null, true);
       }
       
-      // Check if origin is a subdomain of lay4r.io
-      if (origin.endsWith('.lay4r.io')) {
-        console.log(`[CORS] ✅ Allowing subdomain: ${origin}`);
-        return callback(null, true);
+      // Check if origin is a subdomain of lay4r.io (more secure check)
+      try {
+        const url = new URL(origin);
+        if (url.hostname.endsWith('.lay4r.io') && url.hostname !== 'lay4r.io') {
+          console.log(`[CORS] ✅ Allowing subdomain: ${origin}`);
+          return callback(null, true);
+        }
+      } catch (e) {
+        // Invalid URL, will be blocked below
       }
       
       console.log(`[CORS] ❌ Blocking origin: ${origin}`);
