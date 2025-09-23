@@ -98,6 +98,65 @@ export default function Header() {
       displayName: data.user?.displayName,
       walletAddress: data.user?.walletAddress
     });
+    
+    // Store token in localStorage for WebSocket access
+    try {
+      if (data.token) {
+        console.log("🔑 Token received from server:", data.token.substring(0, 20) + "...");
+        console.log("🔍 Token type:", typeof data.token);
+        console.log("🔍 Token length:", data.token.length);
+        
+        // Test localStorage availability first
+        const testKey = 'l4_test_' + Date.now();
+        try {
+          localStorage.setItem(testKey, 'test');
+          localStorage.removeItem(testKey);
+          console.log("✅ localStorage is available and working");
+        } catch (testError) {
+          console.error("❌ localStorage is not available:", testError);
+          throw new Error("localStorage not available");
+        }
+        
+        localStorage.setItem('l4_session', data.token);
+        
+        // Verify the token was stored correctly
+        const storedToken = localStorage.getItem('l4_session');
+        if (storedToken === data.token) {
+          console.log("✅ Token successfully stored and verified in localStorage");
+          console.log("🔍 Stored token length:", storedToken?.length);
+        } else {
+          console.error("❌ Token storage verification failed");
+          console.log("Expected:", data.token.substring(0, 20) + "...");
+          console.log("Stored:", storedToken?.substring(0, 20) + "...");
+          console.log("Expected length:", data.token.length);
+          console.log("Stored length:", storedToken?.length);
+        }
+      } else {
+        console.warn("⚠️ No token received from server in login response");
+        console.log("Available keys in response:", Object.keys(data));
+        console.log("Full response data:", data);
+      }
+    } catch (error) {
+      console.error("❌ Failed to store token in localStorage:", error);
+      // Try to store in sessionStorage as fallback
+      try {
+        if (data.token) {
+          sessionStorage.setItem('l4_session', data.token);
+          console.log("✅ Token stored in sessionStorage as fallback");
+          
+          // Verify sessionStorage
+          const sessionToken = sessionStorage.getItem('l4_session');
+          if (sessionToken === data.token) {
+            console.log("✅ Token verified in sessionStorage");
+          } else {
+            console.error("❌ SessionStorage verification failed");
+          }
+        }
+      } catch (sessionError) {
+        console.error("❌ Failed to store token in sessionStorage:", sessionError);
+      }
+    }
+    
     setUser(data.user ?? null);
     
     // Force refresh authService with new user data
@@ -110,6 +169,21 @@ export default function Header() {
   async function logout() {
     const { apiFetch } = await import("@/lib/api");
     await apiFetch("/auth/logout", { method: "POST" });
+    
+    // Clear token from all storage locations
+    try {
+      localStorage.removeItem('l4_session');
+      console.log("✅ Token cleared from localStorage");
+    } catch (error) {
+      console.warn("⚠️ Failed to clear localStorage:", error);
+    }
+    
+    try {
+      sessionStorage.removeItem('l4_session');
+      console.log("✅ Token cleared from sessionStorage");
+    } catch (error) {
+      console.warn("⚠️ Failed to clear sessionStorage:", error);
+    }
     
     // Clear auth service cache
     const { authService } = await import("@/lib/authService");

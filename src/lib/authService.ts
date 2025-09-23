@@ -117,6 +117,23 @@ class AuthService {
       if (data.user) {
         // console.log('✅ User data fetched successfully:', data.user);
         
+        // Store token if provided (for WebSocket access)
+        if (data.token) {
+          try {
+            localStorage.setItem('l4_session', data.token);
+            console.log('✅ Token stored in localStorage from /auth/me response');
+          } catch (error) {
+            console.warn('⚠️ Failed to store token in localStorage:', error);
+            // Try sessionStorage as fallback
+            try {
+              sessionStorage.setItem('l4_session', data.token);
+              console.log('✅ Token stored in sessionStorage as fallback');
+            } catch (sessionError) {
+              console.warn('⚠️ Failed to store token in sessionStorage:', sessionError);
+            }
+          }
+        }
+        
         // Ensure user has all required fields
         const userWithDefaults: User = {
           ...data.user,

@@ -60,20 +60,92 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   publicKeyRef.current = publicKey;
 
   const getToken = useCallback(async (): Promise<string | null> => {
-    if (!connected || !publicKey) return null;
+    if (!connected || !publicKey) {
+      console.log('[WebSocketProvider] ❌ Not authenticated - wallet not connected');
+      return null;
+    }
 
     try {
+      // Try localStorage first (most reliable for cross-domain)
+      try {
+        const tokenFromStorage = localStorage.getItem('l4_session');
+        if (tokenFromStorage) {
+          console.log('[WebSocketProvider] ✅ Found l4_session token in localStorage');
+          return tokenFromStorage;
+        }
+      } catch (error) {
+        console.warn('[WebSocketProvider] ⚠️ localStorage access failed:', error);
+      }
+
+      // Try sessionStorage as fallback
+      try {
+        const tokenFromSession = sessionStorage.getItem('l4_session');
+        if (tokenFromSession) {
+          console.log('[WebSocketProvider] ✅ Found l4_session token in sessionStorage');
+          // Try to store in localStorage for future use
+          try {
+            localStorage.setItem('l4_session', tokenFromSession);
+            console.log('[WebSocketProvider] ✅ Token copied to localStorage');
+          } catch (storageError) {
+            console.warn('[WebSocketProvider] ⚠️ Could not copy token to localStorage:', storageError);
+          }
+          return tokenFromSession;
+        }
+      } catch (error) {
+        console.warn('[WebSocketProvider] ⚠️ sessionStorage access failed:', error);
+      }
+
+      // If no token in storage, try to get it from the API
+      console.log('[WebSocketProvider] 🔍 No token in storage, fetching from API...');
       const { authService } = await import('@/lib/authService');
       const user = await authService.fetchUser();
-      if (!user) return null;
+      if (!user) {
+        console.log('[WebSocketProvider] ❌ No user data from authService');
+        return null;
+      }
 
+      // The API call should have set the token in localStorage via the login process
+      // Let's check again after the API call
+      try {
+        const tokenAfterApi = localStorage.getItem('l4_session');
+        if (tokenAfterApi) {
+          console.log('[WebSocketProvider] ✅ Found token in localStorage after API call');
+          return tokenAfterApi;
+        }
+      } catch (error) {
+        console.warn('[WebSocketProvider] ⚠️ localStorage access failed after API call:', error);
+      }
+
+      // Last resort: try to get token from cookies (might work in same-domain scenarios)
+      console.log('[WebSocketProvider] 🔍 Checking cookies for l4_session...');
+      console.log('[WebSocketProvider] 📋 All cookies:', document.cookie);
+      
       const cookies = document.cookie.split(';');
       for (const cookie of cookies) {
         const [name, value] = cookie.trim().split('=');
         if (name === 'l4_session') {
-          return decodeURIComponent(value);
+          console.log('[WebSocketProvider] ✅ Found l4_session token in cookies');
+          const decodedToken = decodeURIComponent(value);
+          
+          // Try to store in localStorage for future use
+          try {
+            localStorage.setItem('l4_session', decodedToken);
+            console.log('[WebSocketProvider] ✅ Token copied to localStorage');
+          } catch (storageError) {
+            console.warn('[WebSocketProvider] ⚠️ Could not store token in localStorage:', storageError);
+            // Try sessionStorage as fallback
+            try {
+              sessionStorage.setItem('l4_session', decodedToken);
+              console.log('[WebSocketProvider] ✅ Token stored in sessionStorage as fallback');
+            } catch (sessionError) {
+              console.warn('[WebSocketProvider] ⚠️ Could not store token in sessionStorage:', sessionError);
+            }
+          }
+          return decodedToken;
         }
       }
+      
+      console.log('[WebSocketProvider] ❌ l4_session token not found in localStorage, sessionStorage, or cookies');
     } catch (err) {
       console.error('[WebSocketProvider] Token fetch error:', err);
     }

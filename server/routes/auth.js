@@ -146,14 +146,16 @@ router.post('/login', async (req, res) => {
 
   res.cookie('l4_session', token, {
     httpOnly: false, // Changed to false so WebSocket can access it
-    sameSite: 'lax',
+    sameSite: 'none', // Allow cross-site requests
     secure: process.env.NODE_ENV === 'production',
     path: '/',
+    domain: process.env.NODE_ENV === 'production' ? '.lay4r.io' : undefined, // Allow subdomain access
     expires: expiresAt,
   });
 
   res.json({
     success: true,
+    token: token, // Include token in response for localStorage
     user: {
       id: user.id,
       walletAddress: user.walletAddress,
@@ -195,13 +197,15 @@ router.get('/me', async (req, res) => {
   // Refresh the session cookie to ensure it's properly set
   res.cookie('l4_session', token, {
     httpOnly: false, // Changed to false so WebSocket can access it
-    sameSite: 'lax',
+    sameSite: 'none', // Allow cross-site requests
     secure: process.env.NODE_ENV === 'production',
     path: '/',
+    domain: process.env.NODE_ENV === 'production' ? '.lay4r.io' : undefined, // Allow subdomain access
     expires: session.expiresAt,
   });
 
   res.json({ 
+    token: token, // Include token in response for WebSocket access
     user: { 
       id: user.id, 
       walletAddress: user.walletAddress, 
