@@ -92,11 +92,32 @@ router.get('/users', async (req, res) => {
 // Get all channels (rooms)
 router.get('/channels', async (req, res) => {
   try {
-    // Get current user from session
-    const token = req.cookies?.l4_session;
+    // Debug: Log all cookies and headers
+    console.log('🔍 [CHANNELS API] Request headers:', {
+      cookies: req.cookies,
+      cookie: req.headers.cookie,
+      authorization: req.headers.authorization,
+      'user-agent': req.headers['user-agent']
+    });
+
+    // Get current user from session - try cookies first, then Authorization header
+    let token = req.cookies?.l4_session;
+    
+    // Fallback: check Authorization header if no cookie
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+        console.log('🔍 [CHANNELS API] Using token from Authorization header');
+      }
+    }
+    
     if (!token) {
+      console.log('❌ [CHANNELS API] No l4_session token found in cookies or Authorization header');
       return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    console.log('🔍 [CHANNELS API] Found token:', token.substring(0, 20) + '...');
 
     const session = await prisma.session.findUnique({ 
       where: { token }, 
@@ -105,6 +126,40 @@ router.get('/channels', async (req, res) => {
     
     if (!session || session.expiresAt < new Date()) {
       return res.status(401).json({ error: 'Session expired' });
+    }
+
+    // Ensure user is added to the L4 Community Chat channel
+    try {
+      // Find the existing L4 Community Chat channel
+      const communityChannel = await prisma.channel.findFirst({
+        where: {
+          name: 'L4 Community Group',
+          type: 'text-group'
+        }
+      });
+
+      if (communityChannel) {
+        // Add user to the community channel if not already a member
+        await prisma.channelMember.upsert({
+          where: {
+            channelId_userId: {
+              channelId: communityChannel.id,
+              userId: session.userId
+            }
+          },
+          create: {
+            channelId: communityChannel.id,
+            userId: session.userId
+          },
+          update: {}
+        });
+        console.log('✅ User added to L4 Community Chat channel');
+      } else {
+        console.log('⚠️ L4 Community Chat channel not found in database');
+      }
+    } catch (error) {
+      console.error('Error ensuring user membership in community channel:', error);
+      // Continue even if this fails - don't break the entire request
     }
 
     // Only return channels where the user is a member
