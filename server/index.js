@@ -164,23 +164,59 @@ function startServer() {
     "https://socket.lay4r.io",
     "https://lay4r.io",
     "https://demo.lay4r.io",
-    "https://api.lay4r.io"
+    "https://api.lay4r.io",
+    "https://www.lay4r.io", // Add www subdomain
+    "https://app.lay4r.io", // Add app subdomain
+    "https://frontend.lay4r.io" // Add frontend subdomain
   ];
   
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      console.log(`[CORS] Request from origin: ${origin}`);
+      
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+        console.log('[CORS] ✅ Allowing request with no origin');
         return callback(null, true);
-      } else {
-        return callback(new Error("Not allowed by CORS"));
       }
+      
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        console.log(`[CORS] ✅ Allowing origin: ${origin}`);
+        return callback(null, true);
+      }
+      
+      // Check if origin is a subdomain of lay4r.io
+      if (origin.endsWith('.lay4r.io')) {
+        console.log(`[CORS] ✅ Allowing subdomain: ${origin}`);
+        return callback(null, true);
+      }
+      
+      console.log(`[CORS] ❌ Blocking origin: ${origin}`);
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    exposedHeaders: ['Set-Cookie']
   }));
   
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(cookieParser());
+
+  // Health check endpoint
+  app.get('/health', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      cors: {
+        allowedOrigins: allowedOrigins,
+        requestOrigin: req.headers.origin
+      }
+    });
+  });
 
   // Serve static files
   app.use('/uploads', express.static('public/uploads'));
@@ -464,6 +500,8 @@ function startServer() {
       console.log('🔌 [SERVER] New WebSocket connection attempt:', {
         url: req.url,
         userAgent: req.headers['user-agent'],
+        origin: req.headers.origin,
+        host: req.headers.host,
         timestamp: new Date().toISOString(),
         headers: req.headers
       });
