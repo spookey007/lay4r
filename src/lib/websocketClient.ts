@@ -74,6 +74,7 @@ export class WebSocketClient {
 
     try {
       const token = await this.getToken();
+      console.log(`[${this.protocolName}] 🔑 Token: ${token}`);
       if (!token) {
         const error = 'No authentication token available';
         console.warn(`[${this.protocolName}] 🔑 ${error}`);
