@@ -562,6 +562,9 @@ class App {
     this.createMedias(items, bend, textColor, borderRadius, font);
     this.update();
     this.addEventListeners();
+    
+    // Trigger initial selection
+    this.triggerInitialSelection();
   }
 
   createRenderer() {
@@ -745,28 +748,49 @@ class App {
     const item = width * itemIndex;
     this.scroll.target = this.scroll.target < 0 ? -item : item;
     
+    // Ensure we don't go out of bounds
+    const safeIndex = Math.max(0, Math.min(itemIndex, this.mediasImages.length - 1));
+    const selectedItem = this.mediasImages[safeIndex];
+    
     // Debug logging
     console.log('🎵 [CIRCULAR GALLERY DEBUG]', {
       scrollTarget: this.scroll.target,
       width: width,
       itemIndex: itemIndex,
+      safeIndex: safeIndex,
       currentSelection: this.currentSelection,
       totalItems: this.mediasImages.length,
-      selectedItem: this.mediasImages[itemIndex]
+      selectedItem: selectedItem,
+      hasMusic: !!selectedItem?.music
     });
     
     // Check if selection changed and trigger callback
-    if (itemIndex !== this.currentSelection && this.mediasImages[itemIndex]) {
-      this.currentSelection = itemIndex;
+    if (safeIndex !== this.currentSelection && selectedItem) {
+      this.currentSelection = safeIndex;
       console.log('🎵 [SELECTION CHANGED]', {
-        newIndex: itemIndex,
-        newItem: this.mediasImages[itemIndex],
-        music: this.mediasImages[itemIndex]?.music
+        newIndex: safeIndex,
+        newItem: selectedItem,
+        music: selectedItem?.music,
+        image: selectedItem?.image,
+        text: selectedItem?.text
       });
       if (this.onSelectionChange) {
-        this.onSelectionChange(this.mediasImages[itemIndex], itemIndex);
+        this.onSelectionChange(selectedItem, safeIndex);
       }
     }
+  }
+
+  triggerInitialSelection() {
+    // Trigger selection for the first item after a short delay
+    setTimeout(() => {
+      if (this.mediasImages && this.mediasImages.length > 0 && this.onSelectionChange) {
+        console.log('🎵 [INITIAL SELECTION]', {
+          item: this.mediasImages[0],
+          index: 0
+        });
+        this.onSelectionChange(this.mediasImages[0], 0);
+      }
+    }, 500);
   }
 
   onResize() {
@@ -895,3 +919,4 @@ export default function CircularGallery({
   
   return <div className="w-full h-full overflow-hidden cursor-grab active:cursor-grabbing" ref={containerRef} />;
 }
+

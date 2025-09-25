@@ -1,23 +1,78 @@
 @import "tailwindcss";
 @import "../styles/sega.css";
 
-/* Mobile optimizations for chat widget */
+/* Global zoom prevention for mobile devices */
 @media (max-width: 768px) {
-  /* Improve touch targets */
-  .touch-manipulation {
+  html {
     touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
   
-  /* Prevent zoom on input focus */
+  body {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Mobile optimizations for chat widget */
+@media (max-width: 768px) {
+  /* Disable zoom completely */
+  * {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Allow text selection in input fields */
   input[type="text"],
   input[type="email"],
   textarea {
     font-size: 16px;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
+  
+  /* Prevent double-tap zoom */
+  * {
+    touch-action: manipulation;
+  }
+  
+  /* Disable pinch zoom */
+  html, body {
+    touch-action: pan-x pan-y;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
   
   /* Smooth scrolling */
   .overflow-y-auto {
     -webkit-overflow-scrolling: touch;
+    overflow-x: hidden !important;
+    scroll-behavior: smooth;
+  }
+  
+  /* Message list specific scrolling */
+  [data-message-list] {
+    overflow-x: hidden !important;
+  }
+  
+  [data-message-list] .overflow-y-auto {
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
   
   /* Better button feedback */
@@ -31,6 +86,18 @@
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    -webkit-touch-callout: none;
+  }
+  
+  /* Additional zoom prevention */
+  .chat-widget {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+  }
+  
+  /* Prevent zoom on double tap */
+  .chat-widget * {
+    touch-action: manipulation;
   }
   
   /* Optimize modal animations */
@@ -65,10 +132,10 @@
   }
   
   /* Enhanced mobile chat experience */
-  .chat-widget {
+  /* .chat-widget {
     height: 100vh;
-    height: 100dvh; /* Dynamic viewport height for mobile */
-  }
+    height: 100dvh;
+  } */
   
   /* Better spacing for mobile */
   .mobile-padding {
@@ -90,6 +157,153 @@
   /* Smooth transitions */
   .smooth-transition {
     transition: all 0.2s ease-in-out;
+  }
+  
+  /* Fix mobile cropping issues */
+  .lisa-window {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  .lisa-content {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Ensure text wraps properly on mobile */
+  .lisa-content p,
+  .lisa-content h1,
+  .lisa-content h2,
+  .lisa-content h3 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  
+  /* Force all containers to respect mobile width */
+  .home-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  
+  .home-container * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Ensure body and html don't cause overflow */
+  body {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  
+  html {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Custom radial gradient for vintage loader */
+  .bg-gradient-radial {
+    background: radial-gradient(circle, var(--tw-gradient-stops));
+  }
+  
+  /* Loader screen mobile optimizations */
+  .loader-container {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  
+  .loader-content {
+    max-height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent zoom on loader screen */
+  .loader-container * {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+  }
+  
+  /* Home page mobile optimizations */
+  .home-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Prevent zoom on home page elements */
+  .home-container * {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+  }
+  
+  /* Fix text scaling on mobile */
+  .home-container h1,
+  .home-container h2,
+  .home-container h3,
+  .home-container p {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Ensure proper scaling of images and videos */
+  .home-container img,
+  .home-container video {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* Fix button scaling */
+  .home-container button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* Additional mobile viewport fixes */
+  .home-container {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Fix any potential overflow issues */
+  .home-container .lisa-window {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Ensure proper scaling of flex containers */
+  .home-container .flex {
+    min-width: 0;
+  }
+  
+  /* Fix body mobile viewport issues */
+  body {
+    height: 100vh;
+    height: 100dvh;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Ensure proper mobile viewport handling */
+  html {
+    height: 100vh;
+    height: 100dvh;
   }
 }
 
@@ -217,6 +431,9 @@ body {
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3), 8px 8px 16px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .lisa-titlebar {
@@ -275,6 +492,10 @@ body {
   padding: 16px;
   background: #f0f0f0;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .lisa-button {

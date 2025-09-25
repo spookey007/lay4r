@@ -232,156 +232,156 @@ router.post('/channels', async (req, res) => {
 });
 
 // Get channel messages
-router.get('/channels/:id/messages', async (req, res) => {
-  try {
-    // Get current user from session
-    const token = req.cookies?.l4_session;
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+// router.get('/channels/:id/messages', async (req, res) => {
+//   try {
+//     // Get current user from session
+//     const token = req.cookies?.l4_session;
+//     if (!token) {
+//       return res.status(401).json({ error: 'Unauthorized' });
+//     }
 
-    const session = await prisma.session.findUnique({ 
-      where: { token }, 
-      include: { user: true } 
-    });
+//     const session = await prisma.session.findUnique({ 
+//       where: { token }, 
+//       include: { user: true } 
+//     });
     
-    if (!session || session.expiresAt < new Date()) {
-      return res.status(401).json({ error: 'Session expired' });
-    }
+//     if (!session || session.expiresAt < new Date()) {
+//       return res.status(401).json({ error: 'Session expired' });
+//     }
 
-    const channelId = req.params.id;
-    const { limit = 50, before } = req.query;
+//     const channelId = req.params.id;
+//     const { limit = 50, before } = req.query;
 
-    // Check if user is member of channel - NO AUTO-ADDING for security
-    const membership = await prisma.channelMember.findUnique({
-      where: {
-        channelId_userId: {
-          channelId,
-          userId: session.userId
-        }
-      }
-    });
+//     // Check if user is member of channel - NO AUTO-ADDING for security
+//     const membership = await prisma.channelMember.findUnique({
+//       where: {
+//         channelId_userId: {
+//           channelId,
+//           userId: session.userId
+//         }
+//       }
+//     });
 
-    if (!membership) {
-      console.error('❌ [SECURITY] User attempted to access channel without membership', {
-        channelId,
-        userId: session.userId,
-        userWallet: session.user.walletAddress
-      });
-      return res.status(403).json({ error: 'Access denied: You are not a member of this channel' });
-    }
+//     if (!membership) {
+//       console.error('❌ [SECURITY] User attempted to access channel without membership', {
+//         channelId,
+//         userId: session.userId,
+//         userWallet: session.user.walletAddress
+//       });
+//       return res.status(403).json({ error: 'Access denied: You are not a member of this channel' });
+//     }
 
-    // Verify channel exists and get channel info
-    const channel = await prisma.channel.findUnique({
-      where: { id: channelId },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                walletAddress: true
-              }
-            }
-          }
-        }
-      }
-    });
+//     // Verify channel exists and get channel info
+//     const channel = await prisma.channel.findUnique({
+//       where: { id: channelId },
+//       include: {
+//         members: {
+//           include: {
+//             user: {
+//               select: {
+//                 id: true,
+//                 username: true,
+//                 displayName: true,
+//                 walletAddress: true
+//               }
+//             }
+//           }
+//         }
+//       }
+//     });
 
-    if (!channel) {
-      return res.status(404).json({ error: 'Channel not found' });
-    }
+//     if (!channel) {
+//       return res.status(404).json({ error: 'Channel not found' });
+//     }
 
-    // Fetch latest messages with proper access control
-    const messages = await prisma.message.findMany({
-      where: {
-        channelId,
-        deletedAt: null,
-        // Only show messages from:
-        // 1. System messages (isSystem = true)
-        // 2. Messages from users who are members of this channel
-        OR: [
-          { isSystem: true }, // System messages
-          {
-            authorId: {
-              in: channel.members.map(member => member.userId)
-            }
-          }
-        ],
-        ...(before && { sentAt: { lt: new Date(before) } })
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-            walletAddress: true
-          }
-        },
-        reactions: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true
-              }
-            }
-          }
-        },
-        repliedToMessage: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                walletAddress: true
-              }
-            }
-          }
-        },
-        readReceipts: {
-          where: {
-            userId: session.userId
-          }
-        }
-      },
-      orderBy: { sentAt: 'desc' }, // Get latest messages first
-      take: parseInt(limit)
-    });
+//     // Fetch latest messages with proper access control
+//     const messages = await prisma.message.findMany({
+//       where: {
+//         channelId,
+//         deletedAt: null,
+//         // Only show messages from:
+//         // 1. System messages (isSystem = true)
+//         // 2. Messages from users who are members of this channel
+//         OR: [
+//           { isSystem: true }, // System messages
+//           {
+//             authorId: {
+//               in: channel.members.map(member => member.userId)
+//             }
+//           }
+//         ],
+//         ...(before && { sentAt: { lt: new Date(before) } })
+//       },
+//       include: {
+//         author: {
+//           select: {
+//             id: true,
+//             username: true,
+//             displayName: true,
+//             avatarUrl: true,
+//             walletAddress: true
+//           }
+//         },
+//         reactions: {
+//           include: {
+//             user: {
+//               select: {
+//                 id: true,
+//                 username: true
+//               }
+//             }
+//           }
+//         },
+//         repliedToMessage: {
+//           include: {
+//             author: {
+//               select: {
+//                 id: true,
+//                 username: true,
+//                 displayName: true,
+//                 walletAddress: true
+//               }
+//             }
+//           }
+//         },
+//         readReceipts: {
+//           where: {
+//             userId: session.userId
+//           }
+//         }
+//       },
+//       orderBy: { sentAt: 'desc' }, // Get latest messages first
+//       take: parseInt(limit)
+//     });
 
-    // Reverse to show oldest first in UI (most recent at bottom)
-    const reversedMessages = messages.reverse();
+//     // Reverse to show oldest first in UI (most recent at bottom)
+//     const reversedMessages = messages.reverse();
 
-    // Mark messages as read
-    const unreadMessageIds = reversedMessages
-      .filter(msg => msg.readReceipts.length === 0)
-      .map(msg => msg.id);
+//     // Mark messages as read
+//     const unreadMessageIds = reversedMessages
+//       .filter(msg => msg.readReceipts.length === 0)
+//       .map(msg => msg.id);
 
-    if (unreadMessageIds.length > 0) {
-      await prisma.readReceipt.createMany({
-        data: unreadMessageIds.map(messageId => ({
-          messageId,
-          userId: session.userId,
-          readAt: new Date()
-        })),
-        skipDuplicates: true
-      });
-    }
+//     if (unreadMessageIds.length > 0) {
+//       await prisma.readReceipt.createMany({
+//         data: unreadMessageIds.map(messageId => ({
+//           messageId,
+//           userId: session.userId,
+//           readAt: new Date()
+//         })),
+//         skipDuplicates: true
+//       });
+//     }
 
-    res.json({ 
-      messages: reversedMessages, // Show oldest first (most recent at bottom)
-      hasMore: reversedMessages.length === parseInt(limit)
-    });
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+//     res.json({ 
+//       messages: reversedMessages, // Show oldest first (most recent at bottom)
+//       hasMore: reversedMessages.length === parseInt(limit)
+//     });
+//   } catch (error) {
+//     console.error('Error fetching messages:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 
 // Send message to channel
 router.post('/channels/:id/messages', async (req, res) => {

@@ -143,10 +143,10 @@ export default function MessageBubble({
   const author = message.author?.username || message.author?.displayName || (message.authorId ? `${message.authorId.slice(0,4)}…${message.authorId.slice(-4)}` : "Anonymous");
 
   return (
-    <div className={`flex gap-3 group hover:bg-black/10 -mx-2 px-2 py-1 transition-all duration-200 ${isOwnMessage ? 'justify-end' : 'justify-start'}`} ref={messageRef}>
+    <div className={`flex gap-2 sm:gap-3 group hover:bg-black/10 -mx-2 px-2 py-1 transition-all duration-200 ${isOwnMessage ? 'justify-end' : 'justify-start'}`} ref={messageRef}>
       {/* Avatar for received messages (left side) */}
       {!isOwnMessage && showAvatar && (
-        <div className="w-10 h-10 flex-shrink-0 overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-gradient-to-br from-yellow-300 via-orange-400 to-red-500">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-gradient-to-br from-yellow-300 via-orange-400 to-red-500">
           <img 
             src={message.author?.avatarUrl || DEFAULT_AVATAR} 
             alt={author} 
@@ -158,7 +158,7 @@ export default function MessageBubble({
         
       )}
       {!isOwnMessage && !showAvatar && (
-        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center">
           {showTimestamp && message.sentAt && (
             <span className="text-xs text-black opacity-0 group-hover:opacity-100 transition-opacity font-mono bg-yellow-300 border border-black px-2 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
               {new Date(message.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -168,11 +168,11 @@ export default function MessageBubble({
       )}
       
       {/* Message content */}
-      <div className={`max-w-[70%] md:max-w-[55%] relative ${isOwnMessage ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
+      <div className={`max-w-[80%] sm:max-w-[70%] md:max-w-[55%] relative ${isOwnMessage ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
         {/* Only show author info for other people's messages, not your own */}
         {!isOwnMessage && showAvatar && (
           <div className="flex items-center gap-2 mb-1 justify-start">
-            <span className={`font-bold text-sm font-mono tracking-wide ${
+            <span className={`font-bold text-xs sm:text-sm font-mono tracking-wide ${
               isBot ? 'text-orange-600' : 'text-black'
             }`}>
               {author}
@@ -195,7 +195,7 @@ export default function MessageBubble({
           </div>
         )}
         
-        <div className={`px-3 py-2 relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
+        <div className={`px-2 sm:px-3 py-1.5 sm:py-2 relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
           isOwnMessage 
             ? 'bg-gradient-to-br from-blue-400 to-purple-500 text-white' 
             : isBot 
@@ -226,7 +226,7 @@ export default function MessageBubble({
               )}
             </div>
           )}
-          <div className="text-sm leading-relaxed whitespace-pre-wrap">
+          <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
             {parts.map((p, i) => {
               if (p.type === 'image') return (
                 <div key={i} className="my-3 max-w-full">

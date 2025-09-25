@@ -13,9 +13,9 @@ export default function TypingIndicator({ users }: TypingIndicatorProps) {
 
   const getTypingText = () => {
     if (users.length === 1) {
-      return `${users[0].displayName || users[0].username} is typing...`;
+      return `typing...`;
     } else if (users.length === 2) {
-      return `${users[0].displayName || users[0].username} and ${users[1].displayName || users[1].username} are typing...`;
+      return `typing...`;
     } else {
       return `${users.length} people are typing...`;
     }

@@ -11,6 +11,46 @@ const next = require('next');
 // const jwt = require('jsonwebtoken'); // Not needed for session-based auth
 const { prisma } = require('./lib/prisma');
 
+// Database connection initialization
+async function initializeDatabase() {
+  try {
+    console.log('🔌 [DATABASE] Initializing database connection...');
+    
+    // Test database connection
+    await prisma.$connect();
+    console.log('✅ [DATABASE] Database connected successfully');
+    
+    // Test a simple query to ensure database is working
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('✅ [DATABASE] Database query test successful');
+    
+    return true;
+  } catch (error) {
+    console.error('❌ [DATABASE] Failed to connect to database:', error);
+    console.error('❌ [DATABASE] Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
+    return false;
+  }
+}
+
+// Database health check
+async function checkDatabaseHealth() {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return { status: 'healthy', timestamp: new Date().toISOString() };
+  } catch (error) {
+    console.error('❌ [DATABASE] Health check failed:', error);
+    return { 
+      status: 'unhealthy', 
+      error: error.message, 
+      timestamp: new Date().toISOString() 
+    };
+  }
+}
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
@@ -126,9 +166,23 @@ async function updateUserPresence(userId, status) {
 }
 
 // Initialize server based on environment
-// 🚀 START WEBSOCKET SERVER IMMEDIATELY — DON'T WAIT FOR NEXT.JS
-console.log('🚀 [SERVER] Starting WebSocket server immediately...');
-startServer(); // ← START WEBSOCKET SERVER RIGHT NOW
+// 🚀 START WEBSOCKET SERVER AFTER DATABASE CONNECTION
+console.log('🚀 [SERVER] Starting server initialization...');
+
+// Initialize database first, then start server
+async function initializeServer() {
+  const dbConnected = await initializeDatabase();
+  
+  if (!dbConnected) {
+    console.error('❌ [SERVER] Failed to connect to database. Server will not start.');
+    process.exit(1);
+  }
+  
+  console.log('🚀 [SERVER] Starting WebSocket server...');
+  startServer();
+}
+
+initializeServer();
 
 // 🧩 PREPARE NEXT.JS ASYNCHRONOUSLY — DON'T BLOCK WEBSOCKET
 if (!dev) {
@@ -191,8 +245,19 @@ function startServer() {
   });
 
   // Health check endpoint
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  app.get('/api/health', async (req, res) => {
+    const dbHealth = await checkDatabaseHealth();
+    res.json({ 
+      status: dbHealth.status === 'healthy' ? 'ok' : 'error',
+      database: dbHealth,
+      timestamp: new Date().toISOString() 
+    });
+  });
+
+  // Database health check endpoint
+  app.get('/api/health/database', async (req, res) => {
+    const dbHealth = await checkDatabaseHealth();
+    res.json(dbHealth);
   });
 
   // All other requests handled by Next.js - only in production
@@ -404,6 +469,39 @@ function startServer() {
     try {
       const { messageId } = payload;
       
+      // Validate that the message exists before creating read receipt
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+        select: { id: true, channelId: true }
+      });
+      
+      if (!message) {
+        console.log('⚠️ [SERVER] Cannot mark message as read: message not found', {
+          messageId,
+          userId
+        });
+        return; // Silently return - don't throw error for non-existent messages
+      }
+      
+      // Check if user has access to the channel containing this message
+      const membership = await prisma.channelMember.findUnique({
+        where: {
+          channelId_userId: {
+            channelId: message.channelId,
+            userId
+          }
+        }
+      });
+      
+      if (!membership) {
+        console.log('⚠️ [SERVER] Cannot mark message as read: user not member of channel', {
+          messageId,
+          userId,
+          channelId: message.channelId
+        });
+        return; // Silently return - don't throw error for unauthorized access
+      }
+      
       await prisma.readReceipt.upsert({
         where: {
           messageId_userId: {
@@ -419,6 +517,12 @@ function startServer() {
           userId,
           readAt: new Date()
         }
+      });
+      
+      console.log('✅ [SERVER] Message marked as read:', {
+        messageId,
+        userId,
+        channelId: message.channelId
       });
     } catch (error) {
       console.error('❌ [SERVER] Error marking message as read:', error);
@@ -658,9 +762,50 @@ function startServer() {
     });
   });
 
-  process.on('SIGINT', async () => {
-    console.log('Shutting down WebSocket server...');
-    await prisma.$disconnect();
-    process.exit(0);
+  // Graceful shutdown handling
+  const gracefulShutdown = async (signal) => {
+    console.log(`\n🛑 [SERVER] Received ${signal}. Starting graceful shutdown...`);
+    
+    try {
+      // Close WebSocket server
+      console.log('🔌 [SERVER] Closing WebSocket server...');
+      wss.close(() => {
+        console.log('✅ [SERVER] WebSocket server closed');
+      });
+      
+      // Close HTTP server
+      console.log('🌐 [SERVER] Closing HTTP server...');
+      server.close(() => {
+        console.log('✅ [SERVER] HTTP server closed');
+      });
+      
+      // Disconnect from database
+      console.log('🔌 [DATABASE] Disconnecting from database...');
+      await prisma.$disconnect();
+      console.log('✅ [DATABASE] Database disconnected');
+      
+      console.log('✅ [SERVER] Graceful shutdown completed');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ [SERVER] Error during graceful shutdown:', error);
+      process.exit(1);
+    }
+  };
+
+  // Handle different shutdown signals
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2')); // For nodemon
+
+  // Handle uncaught exceptions
+  process.on('uncaughtException', async (error) => {
+    console.error('💥 [SERVER] Uncaught Exception:', error);
+    await gracefulShutdown('UNCAUGHT_EXCEPTION');
+  });
+
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', async (reason, promise) => {
+    console.error('💥 [SERVER] Unhandled Rejection at:', promise, 'reason:', reason);
+    await gracefulShutdown('UNHANDLED_REJECTION');
   });
 }

@@ -87,7 +87,7 @@ const fetchTokenData = async () => {
 
   return (
         <motion.div 
-          className="flex flex-col flex-1 py-4" 
+          className="flex flex-col flex-1 py-4 home-container" 
           style={{ fontFamily: "'LisaStyle', monospace" }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -119,7 +119,7 @@ const fetchTokenData = async () => {
           >
             <h1 className="text-3xl md:text-4xl font-bold mb-2 font-[Courier_New,monospace]">Welcome to Layer4</h1>
             <h2 className="text-lg md:text-xl mb-4 font-semibold text-[#0000ff]">Revolutionary Layer 4 Tek Protocol</h2>
-            <p className="mb-5 max-w-xl text-base leading-relaxed">Built on &quot;Layer 4 Tek&quot; &#8211; a revolutionary protocol that transcends traditional blockchain layers. L4 is designed for one purpose: unbreakable stability. No selling allowed. No DEXs to tempt the weak. This is the future of financial stability, crafted by retards for retards.</p>
+            <p className="mb-5 max-w-full text-base leading-relaxed">Built on &quot;Layer 4 Tek&quot; &#8211; a revolutionary protocol that transcends traditional blockchain layers. L4 is designed for one purpose: unbreakable stability. No selling allowed. No DEXs to tempt the weak. This is the future of financial stability, crafted by retards for retards.</p>
             <div className="text-center space-y-4">
               {/* <motion.button 
                 onClick={() => {
@@ -233,7 +233,7 @@ const fetchTokenData = async () => {
                 loop
                 playsInline
                 className="rounded border border-[#808080] max-w-full h-auto object-cover"
-                style={{ width: '400px', height: '280px' }}
+                style={{ maxWidth: '100%', height: 'auto', aspectRatio: '400/280' }}
               >
                 <source src="/motherboard.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
@@ -486,7 +486,7 @@ const fetchTokenData = async () => {
         </div>
         <div className="lisa-content">
           <div className="flex flex-col items-center gap-6">
-            <div className="text-center max-w-2xl">
+            <div className="text-center max-w-full">
               <h2 className="text-2xl font-bold mb-4 text-[#0000ff]">Enter the Cosmos of Layer4</h2>
               <p className="mb-6 text-sm leading-relaxed">
                 Embark on an interstellar journey through the universe of Layer4! Dodge asteroids, 
@@ -530,7 +530,7 @@ const fetchTokenData = async () => {
               </div>
             </div>
             
-            <div className="w-full max-w-3xl mt-8">
+            <div className="w-full max-w-full mt-8">
               <div className="lisa-card p-0 bg-black">
                 <div className="aspect-video relative overflow-hidden rounded-md">
                   <video
@@ -544,7 +544,7 @@ const fetchTokenData = async () => {
                     Your browser does not support the video tag.
                   </video>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center pb-4">
-                    <p className="text-white text-xs text-center max-w-xs">
+                    <p className="text-white text-xs text-center max-w-full">
                       Watch the spaceship in action! Collect power-ups, dodge obstacles, and explore the Layer4 universe.
                     </p>
                   </div>
@@ -722,7 +722,7 @@ const fetchTokenData = async () => {
             transition={{ duration: 0.3 }}
           >
             <motion.div 
-              className="w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-full max-h-[90vh] overflow-y-auto"
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}

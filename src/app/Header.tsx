@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLisaSounds } from "@/lib/lisaSounds";
 import { animations, createHoverAnimation, createTapAnimation } from "@/lib/animations";
 import SoundSettings from "@/components/SoundSettings";
+import { useAudio } from "@/contexts/AudioContext";
 
 export default function Header() {
   const pathname = usePathname();
@@ -21,7 +22,8 @@ export default function Header() {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showSoundSettings, setShowSoundSettings] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { playMenuClick, playButtonClick, playLinkClick, playHoverSound } = useLisaSounds();
+  const { playMenuClick, playButtonClick, playLinkClick, playHoverSound, setEnabled } = useLisaSounds();
+  const { audioEnabled, toggleAudio } = useAudio();
 
   useEffect(() => {
     console.log("Header useEffect - connected:", connected, "publicKey:", publicKey?.toString());
@@ -40,6 +42,11 @@ export default function Header() {
         );
     }
   }, [connected, publicKey]);
+
+  // Sync sound system with shared audio state
+  useEffect(() => {
+    setEnabled(audioEnabled);
+  }, [audioEnabled, setEnabled]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -205,6 +212,14 @@ export default function Header() {
     }
   };
 
+  const handleAudioToggle = () => {
+    toggleAudio();
+    // Play a sound to indicate the toggle (only if not muting)
+    if (audioEnabled) {
+      playButtonClick();
+    }
+  };
+
   return (
     <motion.header 
       className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-[#808080] pb-4 mb-6 gap-4 px-4 sm:px-6 pt-6 bg-[#fff] w-full" 
@@ -354,6 +369,31 @@ export default function Header() {
         )}
       </nav>
       <div className="flex items-center gap-2">
+        {/* Simple Mute Icon */}
+        <motion.button
+          onClick={handleAudioToggle}
+          onMouseEnter={() => audioEnabled && playHoverSound()}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className="flex items-center justify-center w-10 h-10 rounded-lg border-2 border-[#808080] bg-[#f0f0f0] hover:bg-[#e0e0e0] transition-colors"
+          title={audioEnabled ? "Mute sounds" : "Unmute sounds"}
+        >
+          <motion.span
+            className="text-2xl"
+            animate={{ 
+              scale: !audioEnabled ? [1, 1.2, 1] : [1, 1.1, 1],
+              rotate: !audioEnabled ? [0, 5, -5, 0] : [0, 2, -2, 0]
+            }}
+            transition={{ 
+              duration: !audioEnabled ? 2 : 1,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          >
+            {audioEnabled ? '🔊' : '🔇'}
+          </motion.span>
+        </motion.button>
+        
         {connected && publicKey ? (
           <div className="relative" ref={dropdownRef}>
             <motion.button
@@ -447,7 +487,7 @@ export default function Header() {
                   >
                     ⚙️ Settings
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => {
                       playMenuClick();
                       setShowSoundSettings(!showSoundSettings);
@@ -456,7 +496,7 @@ export default function Header() {
                     className="w-full text-left px-3 py-2 text-sm hover:bg-[#f0f0f0] rounded"
                   >
                     🔊 Sound Settings
-                  </button>
+                  </button> */}
                 </div>
                 </motion.div>
               )}

@@ -378,10 +378,10 @@ export default function ChatSidebar({ onChannelSelect, currentChannelId }: ChatS
   return (
     <div className="h-full flex flex-col bg-blue-100 border-r-2 border-black">
       {/* Header */}
-      <div className="p-3 border-b-2 border-black bg-blue-200">
+      {/* <div className="p-3 border-b-2 border-black bg-blue-200">
         <h2 className="text-base font-bold text-black font-mono mb-1">MESSAGES</h2>
         <p className="text-xs text-black font-mono">CHANNELS & DIRECT MESSAGES</p>
-      </div>
+      </div> */}
 
       {/* Search */}
       <div className="p-3 border-b-2 border-black bg-blue-100">

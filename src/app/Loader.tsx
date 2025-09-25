@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import CircularGallery from './components/CircularGallery';
+import { useAudio } from "@/contexts/AudioContext";
 
 // Typewriter Text Component
 const TypewriterText = ({ text, speed = 100 }: { text: string; speed?: number }) => {
@@ -50,8 +51,8 @@ export default function Loader({ children }: { children: React.ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [audioStarted, setAudioStarted] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState(true);
   const [showAudioPrompt, setShowAudioPrompt] = useState(false);
+  const { audioEnabled, toggleAudio } = useAudio();
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [currentMusic, setCurrentMusic] = useState<string | null>(null);
   const currentMusicRef = useRef<string | null>(null);
@@ -77,19 +78,27 @@ export default function Loader({ children }: { children: React.ReactNode }) {
         newMusic: item.music
       });
       
-      // Just set up the audio file for the loader, don't play immediately
+      // Set up the audio file for the loader
       if (musicRef.current) {
         musicRef.current.src = item.music;
         musicRef.current.load(); // Load the audio file
+        
+        // If audio is enabled and we're in loading state, start playing
+        if (audioEnabled && audioStarted) {
+          musicRef.current.play().catch(e => console.log("Audio play failed:", e));
+        }
+        
         console.log('🎵 [AUDIO LOADED]', {
           src: musicRef.current.src,
-          readyState: musicRef.current.readyState
+          readyState: musicRef.current.readyState,
+          audioEnabled: audioEnabled,
+          audioStarted: audioStarted
         });
       }
     } else {
       console.log('🎵 [NO MUSIC]', 'Item has no music property');
     }
-  }, []); // Remove currentMusic dependency to prevent re-creation
+  }, [audioEnabled, audioStarted]); // Include audio state dependencies
 
   const startLoading = useCallback(() => {
     if (!started) {
@@ -110,22 +119,34 @@ export default function Loader({ children }: { children: React.ReactNode }) {
     }
   }, [started, audioEnabled]);
 
-  const toggleAudio = useCallback(() => {
-    if (audioRef.current) {
+  const handleToggleAudio = useCallback(() => {
+    toggleAudio();
+  }, [toggleAudio]);
+
+  // Handle audio state changes - pause/resume music based on audioEnabled
+  useEffect(() => {
+    if (audioRef.current && audioStarted) {
       if (audioEnabled) {
-        audioRef.current.pause();
-        setAudioEnabled(false);
+        // Resume music if it was paused
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch(e => console.log("Audio resume failed:", e));
+        }
       } else {
-        // Use selected music if available, otherwise default to aceofbase.mp3
-        const musicToPlay = currentMusicRef.current || "/aceofbase.mp3";
-        audioRef.current.src = musicToPlay;
-        audioRef.current.loop = true;
-        audioRef.current.volume = 0.3;
-        audioRef.current.play().catch(e => console.log("Audio play failed:", e));
-        setAudioEnabled(true);
+        // Pause music if it's playing
+        if (!audioRef.current.paused) {
+          audioRef.current.pause();
+        }
       }
     }
-  }, [audioEnabled]);
+  }, [audioEnabled, audioStarted]);
+
+  // Handle initial audio state when component mounts
+  useEffect(() => {
+    if (audioRef.current && audioStarted && !audioEnabled) {
+      // If audio is disabled, make sure music is paused
+      audioRef.current.pause();
+    }
+  }, [audioStarted, audioEnabled]);
 
   const startAudio = useCallback(async () => {
     if (audioRef.current && audioEnabled) {
@@ -210,9 +231,11 @@ export default function Loader({ children }: { children: React.ReactNode }) {
         </audio>
         <audio ref={musicRef} preload="auto" />
         <motion.div
-          className="flex flex-col items-center justify-center min-h-screen bg-white p-4 relative"
+          className="flex flex-col items-center justify-center min-h-screen bg-white p-2 sm:p-4 relative"
           style={{
-            fontFamily: "'LisaStyle', monospace"
+            fontFamily: "'LisaStyle', monospace",
+            height: '100dvh',
+            overflow: 'auto'
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -238,14 +261,15 @@ export default function Loader({ children }: { children: React.ReactNode }) {
 
     {/* Main Terminal Window */}
     <motion.div 
-      className="max-w-md w-full bg-transparent relative z-30"
+      className="max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl w-full bg-transparent relative z-30 flex flex-col items-center justify-center"
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.8 }}
+      style={{ maxHeight: '100%' }}
     >
       {/* Terminal Content */}
       <motion.div 
-        className="p-6 text-center space-y-6"
+        className="p-3 sm:p-6 text-center space-y-3 sm:space-y-6 w-full"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5, duration: 0.6 }}
@@ -263,7 +287,7 @@ export default function Loader({ children }: { children: React.ReactNode }) {
             damping: 15
           }}
         >
-          <div style={{ height: '600px', position: 'relative' }}>
+          <div className="h-64 sm:h-80 md:h-96 lg:h-[600px] w-full relative">
             <CircularGallery 
               bend={3} 
               textColor="#ffffff" 
@@ -282,8 +306,8 @@ export default function Loader({ children }: { children: React.ReactNode }) {
           transition={{ delay: 0.9, duration: 0.5 }}
         >
           <motion.button
-            onClick={toggleAudio}
-            className="flex items-center gap-2 px-6 py-3 text-sm font-mono border-2 border-cyan-400 bg-gray-900/80 backdrop-blur-sm text-cyan-400 font-bold shadow-[0_0_12px_#00ffff] rounded-lg"
+            onClick={handleToggleAudio}
+            className="flex items-center gap-2 px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-mono border-2 border-cyan-400 bg-gray-900/80 backdrop-blur-sm text-cyan-400 font-bold shadow-[0_0_12px_#00ffff] rounded-lg"
             whileHover={{ 
               scale: 1.05,
               backgroundColor: "#00ffff",
@@ -314,7 +338,7 @@ export default function Loader({ children }: { children: React.ReactNode }) {
         {/* Launch Button */}
         <motion.button
           onClick={startLoading}
-          className="w-full py-4 bg-yellow-400 border-2 border-yellow-400 text-black font-bold uppercase tracking-wider text-xl font-mono group shadow-[0_0_15px_#ffff00] font-extrabold rounded-lg relative overflow-hidden"
+          className="w-full py-3 sm:py-4 bg-yellow-400 border-2 border-yellow-400 text-black font-bold uppercase tracking-wider text-lg sm:text-xl font-mono group shadow-[0_0_15px_#ffff00] font-extrabold rounded-lg relative overflow-hidden"
           whileHover={{ 
             scale: 1.02,
             boxShadow: "0 0 30px #ffff00",

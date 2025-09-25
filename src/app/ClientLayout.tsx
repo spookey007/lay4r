@@ -11,6 +11,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 import ChatWidget from "./components/ChatWidget";
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { ToastProvider } from "@/components/Toast";
+import { AudioProvider } from "@/contexts/AudioContext";
 
 export default function ClientLayout({
   children,
@@ -20,25 +21,27 @@ export default function ClientLayout({
   const endpoint = "https://api.mainnet-beta.solana.com";
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
   return (
-    <Loader>
-      <ConnectionProvider endpoint={endpoint}>
-        <WalletProvider wallets={wallets} autoConnect>
-          <WalletModalProvider>
-            <ToastProvider>
-              <WebSocketProvider>
-                <div className="flex flex-col min-h-screen max-w-6xl mx-auto">
-                  <Header />
-                  <main className="flex-1 flex flex-col w-full px-4 sm:px-6">
-                    {children}
-                  </main>
-                  <Footer />
-                </div>
-                {/* <ChatWidget /> */}
-              </WebSocketProvider>
-            </ToastProvider>
-          </WalletModalProvider>
-        </WalletProvider>
-      </ConnectionProvider>
-    </Loader>
+    <AudioProvider>
+      <Loader>
+        <ConnectionProvider endpoint={endpoint}>
+          <WalletProvider wallets={wallets} autoConnect>
+            <WalletModalProvider>
+              <ToastProvider>
+                <WebSocketProvider>
+                  <div className="flex flex-col min-h-screen w-full max-w-full">
+                    <Header />
+                    <main className="flex-1 flex flex-col w-full px-4 sm:px-6">
+                      {children}
+                    </main>
+                    <Footer />
+                  </div>
+                  {/* <ChatWidget /> */}
+                </WebSocketProvider>
+              </ToastProvider>
+            </WalletModalProvider>
+          </WalletProvider>
+        </ConnectionProvider>
+      </Loader>
+    </AudioProvider>
   );
 }

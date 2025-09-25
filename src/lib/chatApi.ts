@@ -23,16 +23,16 @@ export const fetchMessagesWithFallback = async (
     return;
   }
 
-  try {
-    const url = `/chat/channels/${channelId}/messages?limit=${limit}${before ? `&before=${before}` : ''}`;
-    const response = await apiFetch(url);
+  // try {
+  //   const url = `/chat/channels/${channelId}/messages?limit=${limit}${before ? `&before=${before}` : ''}`;
+  //   const response = await apiFetch(url);
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  //   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = await response.json();
-    useChatStore.getState().setMessages(channelId, data.messages);
-    console.log(`📚 [chatApi] Fetched ${data.messages.length} messages via HTTP fallback`);
-  } catch (error) {
-    console.error('[chatApi] Fallback fetch failed:', error);
-  }
+  //   const data = await response.json();
+  //   useChatStore.getState().setMessages(channelId, data.messages);
+  //   console.log(`📚 [chatApi] Fetched ${data.messages.length} messages via HTTP fallback`);
+  // } catch (error) {
+  //   console.error('[chatApi] Fallback fetch failed:', error);
+  // }
 };

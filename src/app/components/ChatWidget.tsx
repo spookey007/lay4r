@@ -36,6 +36,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
   const [modalSearchResults, setModalSearchResults] = useState<any[]>([]);
   const [isModalSearching, setIsModalSearching] = useState(false);
   const [isCreatingDM, setIsCreatingDM] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { 
@@ -148,6 +149,15 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
     setShowUserSearch(false);
     setModalSearchQuery('');
     setModalSearchResults([]);
+  };
+
+  const toggleFullscreen = () => {
+    playButtonClick();
+    // On mobile, fullscreen is always true, so we don't toggle
+    if (window.innerWidth < 768) {
+      return;
+    }
+    setIsFullscreen(!isFullscreen);
   };
 
   const handleModalUserClick = async (user: any) => {
@@ -349,27 +359,49 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", stiffness: 500, damping: 50 }}
-            className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-50 w-full h-full md:w-[600px] lg:w-[700px] md:h-[600px] lg:h-[700px] md:max-h-[90vh] p-0"
+            className={`fixed z-50 p-0 ${
+              isFullscreen 
+                ? 'inset-0 w-full h-full' 
+                : 'inset-0 md:inset-auto md:bottom-4 md:right-4 w-full  md:w-[600px] lg:w-[700px] md:h-[600px] lg:h-[700px] md:max-h-[90vh]'
+            }`}
             style={{
-              transformOrigin: "bottom right"
+              transformOrigin: isFullscreen ? "center" : "bottom right"
             }}
           >
-            <div className="chat-widget h-full flex bg-white shadow-2xl border-0 md:border border-gray-200 overflow-hidden">
+            <div className="chat-widget flex bg-white shadow-2xl border-0 md:border border-gray-200 overflow-hidden" style={{ height: '100%' }}>
               {/* Header */}
-              <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-gray-900 to-black text-white p-4 flex items-center justify-between z-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/10 flex items-center justify-center">
-                    <span className="text-xl">💬</span>
+              <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-gray-900 to-black text-white p-3 sm:p-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg sm:text-xl">💬</span>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-lg">Mainnet Chat (beta)</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-sm sm:text-lg truncate">Mainnet Chat (beta)</h3>
                     {/* <div className="flex items-center gap-2 text-sm text-gray-300">
                       <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
                       <span>{isConnected ? 'Connected' : 'Connecting...'}</span>
                     </div> */}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                  {/* Fullscreen toggle - hidden on mobile */}
+                  <button 
+                    onClick={toggleFullscreen}
+                    onMouseEnter={() => playHoverSound()}
+                    className="hidden md:flex p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                    title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                  >
+                    {isFullscreen ? (
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 9V4.5M15 9h4.5M15 9l5.5-5.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 15v4.5M15 15h4.5M15 15l5.5 5.5" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                      </svg>
+                    )}
+                  </button>
                   {/* Mobile sidebar toggle */}
                   <button 
                     className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -380,7 +412,7 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                     onMouseEnter={() => playHoverSound()}
                     aria-label="Toggle sidebar"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                   </button>
@@ -393,18 +425,18 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                     aria-label="Close chat"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 flex pt-20 min-h-0 bg-gray-50">
+              <div className="flex-1 flex pt-16 sm:pt-20 bg-gray-50">
                 {/* Mobile overlay */}
                 {showSidebar && (
                   <div 
-                    className="md:hidden absolute inset-0 bg-black/50 z-20 pt-20"
+                    className="md:hidden absolute inset-0 bg-black/50 z-20 pt-16 sm:pt-20"
                     onClick={() => setShowSidebar(false)}
                   />
                 )}
@@ -412,7 +444,9 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                 {/* Sidebar */}
                 <div className={`absolute md:relative z-30 md:z-0 transition-all duration-300 ease-in-out w-full md:w-64 lg:w-72 h-full ${
                   showSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-                } ${!showSidebar && showChatView ? 'md:w-0 md:overflow-hidden' : ''}`}>
+                } ${!showSidebar && showChatView ? 'md:w-0 md:overflow-hidden' : ''} ${
+                  isFullscreen ? 'md:w-80 lg:w-96' : ''
+                }`}>
                   <div className="bg-white h-full border-r border-gray-200 flex flex-col pt-0">
                     <ChatSidebar 
                       onChannelSelect={handleChannelSelect}
@@ -425,15 +459,15 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                 <div className="flex-1 flex flex-col min-w-0">
                   {!showChatView ? (
                     /* Initial view - Show channels list */
-                    <div className="flex-1 flex items-center justify-center bg-gray-50">
-                      <div className="text-center p-8 max-w-md mx-auto">
-                        <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                          <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
+                      <div className="text-center p-4 sm:p-8 max-w-md mx-auto">
+                        <div className="w-16 h-16 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg">
+                          <svg className="w-8 h-8 sm:w-12 sm:h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                           </svg>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to Mainnet Chat</h3>
-                        <p className="text-gray-500 mb-6">Select a channel from the sidebar to start chatting with the Layer4 community</p>
+                        <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">Welcome to Mainnet Chat</h3>
+                        <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">Select a channel from the sidebar to start chatting with the Layer4 community</p>
                         <div className="flex flex-col sm:flex-row gap-3 justify-center">
                           {/* <motion.div 
                             className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-white"
@@ -493,16 +527,16 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                   ) : showChatView && currentChannelId ? (
                     <>
                       {/* Chat Header */}
-                      <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                      <div className="bg-white border-b border-gray-200 p-3 sm:p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                           {/* Back to channels button */}
                           <button
                             onClick={handleBackToChannels}
                             onMouseEnter={() => playHoverSound()}
-                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
+                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0"
                             title="Back to Channels"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
                           </button>
@@ -514,45 +548,45 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                                 setShowSidebar(true);
                               }}
                               onMouseEnter={() => playHoverSound()}
-                              className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+                              className="md:hidden p-2 hover:bg-gray-100 rounded-lg flex-shrink-0"
                               aria-label="Show sidebar"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                               </svg>
                             </button>
                           )}
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
                             {getCurrentChannel()?.type === 'dm' ? (
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
                               </svg>
                             ) : (
-                              '#'
+                              <span className="text-sm sm:text-base">#</span>
                             )}
                           </div>
-                          <div>
-                            <h4 className="font-semibold text-lg text-gray-900">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-semibold text-sm sm:text-lg text-gray-900 truncate">
                               {getChannelDisplayName()}
                             </h4>
                             {getChannelMemberCount() && (
-                              <span className="text-sm text-gray-500">
+                              <span className="text-xs sm:text-sm text-gray-500">
                                 {getChannelMemberCount()}
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
+                        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                          {/* <button
                             onClick={() => setShowMembersList(!showMembersList)}
                             onMouseEnter={() => playHoverSound()}
                             className="flex p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
                             title={showMembersList ? "Hide members" : "Show members"}
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                             </svg>
-                          </button>
+                          </button> */}
                           {/* <button
                             onClick={() => setShowMembersList(!showSidebar)}
                             className="hidden md:flex p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
@@ -565,9 +599,9 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
                         </div>
                       </div>
 
-                      <div className="flex-1 flex min-h-0 overflow-hidden">
+                      <div className="flex-1 flex overflow-auto" style={{ height: '100%' }}>
                         {/* Messages */}
-                        <div className="flex-1 bg-gray-50 min-w-0">
+                        <div className="flex-1 bg-gray-50 min-w-0" style={{ height: '100%' }}>
                           <MessageList 
                             channelId={currentChannelId} 
                             messagesEndRef={messagesEndRef}
@@ -579,7 +613,9 @@ function ChatWidgetContent({ className = '' }: ChatWidgetProps) {
 
                         {/* Members List */}
                         {showMembersList && (
-                          <div className="bg-white border-l border-gray-200 flex flex-col flex-shrink-0 shadow-lg w-80 min-w-80">
+                          <div className={`bg-white border-l border-gray-200 flex flex-col flex-shrink-0 shadow-lg ${
+                            isFullscreen ? 'w-96 min-w-96' : 'w-80 min-w-80'
+                          }`}>
                             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
                               <h3 className="font-semibold text-gray-900 text-sm">Members</h3>
                               <button

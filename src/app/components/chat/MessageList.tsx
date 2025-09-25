@@ -87,19 +87,19 @@ export default function MessageList({
     const oldestMessage = currentMessages[0];
     const before = oldestMessage.sentAt;
 
-    try {
-      const { apiFetch } = await import('@/lib/api');
-      const response = await apiFetch(`/chat/channels/${channelId}/messages?before=${before}&limit=50`);
-      const data = await response.json();
-      if (data.messages.length > 0) {
-        prependMessages(channelId, data.messages);
-      }
-      setHasMoreMessages(data.hasMore);
-    } catch (error) {
+    // try {
+    //   const { apiFetch } = await import('@/lib/api');
+    //   const response = await apiFetch(`/chat/channels/${channelId}/messages?before=${before}&limit=50`);
+    //   const data = await response.json();
+    //   if (data.messages.length > 0) {
+    //     prependMessages(channelId, data.messages);
+    //   }
+    //   setHasMoreMessages(data.hasMore);
+    // } catch (error) {
 
-    } finally {
-      setIsLoadingMore(false);
-    }
+    // } finally {
+    //   setIsLoadingMore(false);
+    // }
   };
 
   // WebSocket event handlers for channel-specific events
@@ -465,14 +465,12 @@ export default function MessageList({
   }, [channelId]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 relative bg-gray-50 h-full" data-message-list>
+    <div className="flex-1 flex flex-col min-h-0 relative bg-gray-50 overflow-x-hidden" data-message-list>
       {/* Messages container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 py-2 sm:py-3 space-y-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
         style={{
-          maxHeight: '100%',
-          height: '100%',
           scrollBehavior: 'smooth',
           WebkitOverflowScrolling: 'touch' // iOS smooth scrolling
         }}
@@ -496,13 +494,18 @@ export default function MessageList({
           </div>
         )}
         
-        {/* Loading indicator when switching chats */}
+        {/* Loading GIF */}
         {switchingChat && (
           <div className="flex justify-center items-center py-12">
-            <div className="bg-white border-2 border-black p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <div className="w-8 h-8 border-2 border-black border-t-white animate-spin mx-auto mb-4"></div>
-              <p className="text-sm text-black font-mono font-bold">LOADING MESSAGES...</p>
-              {/* <p className="text-xs text-gray-400 mt-2">Debug: switchingChat=true, messages={currentMessages.length}</p> */}
+            <div className="text-center">
+              <img 
+                src="/loading.gif" 
+                alt="Loading messages..." 
+                className="w-24 h-24 mx-auto mb-4"
+              />
+              <p className="text-sm text-gray-600 font-mono font-bold">
+                LOADING MESSAGES...
+              </p>
             </div>
           </div>
         )}
@@ -559,7 +562,7 @@ export default function MessageList({
             new Date(nextMessage.sentAt).getTime() - new Date(message.sentAt).getTime() > 5 * 60 * 1000; // 5 minutes
 
           return (
-            <div key={message.id} className="group mb-1">
+            <div key={message.id} className="group mb-0.5 sm:mb-1">
               <MessageBubble
                 message={message}
                 showAvatar={showAvatar}
@@ -600,13 +603,13 @@ export default function MessageList({
 
       {/* Scroll to bottom button */}
       {!isAtBottom && (
-        <div className="absolute bottom-6 right-6 z-10">
+        <div className="absolute bottom-4 right-4 z-10">
           <button
             onClick={scrollToBottom}
-            className="bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-800 p-3 rounded-full shadow-lg border border-gray-200 transition-all hover:shadow-xl hover:scale-105"
+            className="bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-800 p-2 sm:p-3 rounded-full shadow-lg border border-gray-200 transition-all hover:shadow-xl hover:scale-105"
             title="Scroll to bottom"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
           </button>

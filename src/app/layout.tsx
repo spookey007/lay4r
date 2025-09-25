@@ -60,7 +60,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="apple-mobile-web-app-title" content="Layer4" />
         <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -83,7 +83,7 @@ export default function RootLayout({
           `}
         </Script> */}
       </head>
-      <body className="antialiased min-h-screen flex flex-col">
+      <body className="antialiased flex flex-col" style={{ minHeight: '100vh' }}>
         <ClientLayout>
           {children}
         </ClientLayout>
